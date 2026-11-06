@@ -62,7 +62,7 @@ First time running e2e: `npx playwright install chromium webkit`.
 
 ## Deploy
 
-The project is connected to Vercel through GitHub: every push to `main` deploys to production, and
+The project is connected to Vercel through GitHub: every push to `master` deploys to production, and
 every pull request gets a preview URL. Manual deploy: `npx vercel --prod`.
 
 ### Environment variables (Vercel → Settings → Environment Variables, Production + Preview)
