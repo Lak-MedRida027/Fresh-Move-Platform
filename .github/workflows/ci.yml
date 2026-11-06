@@ -48,3 +48,31 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start local Supabase (migrations applied from supabase/migrations)
+        run: npx supabase start -x studio,imgproxy
+
+      - name: plpgsql lint + Security/Performance Advisors
+        run: npm run db:lint
+
+      - name: Generated types are up to date
+        run: |
+          npx supabase gen types typescript --local > /tmp/database.types.ts
+          diff -u src/lib/database.types.ts /tmp/database.types.ts
+
+      - name: Database tests (seats, concurrency, RLS, storage)
+        run: npm run test:db

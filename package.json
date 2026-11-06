@@ -21,7 +21,14 @@
     "placeholders": "node scripts/make-placeholders.mjs",
     "icons": "node scripts/make-icons.mjs",
     "screenshots": "node scripts/screenshots.mjs",
-    "lighthouse": "node scripts/lighthouse.mjs"
+    "lighthouse": "node scripts/lighthouse.mjs",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:types": "supabase gen types typescript --local > src/lib/database.types.ts",
+    "db:lint": "node scripts/db-check.mjs",
+    "test:db": "node scripts/with-local-supabase.mjs vitest run --config vitest.db.config.ts",
+    "db:seed": "node scripts/with-local-supabase.mjs node scripts/seed-trips.ts"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",
@@ -37,10 +44,12 @@
     "@axe-core/playwright": "^4.14.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.65.0",
+    "@supabase/supabase-js": "^2.119.0",
     "eslint": "^10.14.0",
     "eslint-plugin-astro": "^3.2.1",
     "globals": "^17.14.0",
     "lighthouse": "^13.6.0",
+    "supabase": "^3.0.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.1",
     "vitest": "^5.1.0",

@@ -115,3 +115,33 @@ An automated review flagged three weaknesses; all fixed with tests in `tests/api
 ## e2e suite runs against the live site
 - `BASE_URL=https://freshmove-seven.vercel.app npx playwright test` runs every e2e + axe test against a
   deployment (no local server). One test had a `localhost` regex; it now checks the pathname instead.
+
+---
+
+# v2
+
+## Audit trigger failed on every table except admin_users
+- **Symptom:** 8 DB tests failed with `42703` / `record "new" has no field "user_id"`.
+- **Cause:** the shared audit trigger had `CASE WHEN tg_table_name = 'admin_users' THEN new.user_id …`.
+  PL/pgSQL resolves record fields when the expression is prepared, even in branches that don't run.
+- **Fix:** read the id through `to_jsonb(new) ->> 'id'` / `->> 'user_id'`, which works for any table.
+
+## "permission denied for schema private" when an admin edited a trip
+- **Cause:** trigger functions run as the calling user; the guard trigger called a helper in schema
+  `private`, which `authenticated` can't use (on purpose).
+- **Fix:** the internal trigger functions are `SECURITY DEFINER` with `search_path = ''`. The schema stays
+  closed to API roles.
+
+## Concurrency test failed right after `supabase db reset`
+- **Symptom:** the 30-parallel-bookings test failed about 1 in 4 times, only on the first run after a
+  reset. The error detail showed `57P01 terminating connection due to unexpected postmaster exit` /
+  `PGRST001 no connection to the server`, never a wrong seat count.
+- **Investigation:** reproduced with a reset → test loop (9/12 passed). The database container wasn't
+  OOM-killed and didn't restart. Its log shows `db reset` doing a fast shutdown + restart about 1 s after the
+  command returns, so the first requests can hit that restart.
+- **Fix (root cause is test start-up timing):** `scripts/with-local-supabase.mjs` waits until the API answers
+  three times in a row before running tests. After the fix: 10/10 runs pass, each straight after a reset.
+
+## plpgsql_check: STABLE function calling a VOLATILE one
+- `private.require_admin()` (and `admin_storage_usage()`) were `STABLE` but can raise; marked volatile.
+  `npm run db:lint` (lint + Security/Performance Advisors) now reports no issues, and CI fails on any finding.
