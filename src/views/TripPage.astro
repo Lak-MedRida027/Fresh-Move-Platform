@@ -28,6 +28,8 @@ const cover = await getImage({
   quality: 72,
 });
 
+const ogImage = await getImage({ src: data.cover, width: 1200, height: 630, format: 'jpg', quality: 80 });
+
 const total = data.gallery.length;
 // Full-size versions for the lightbox are computed at build time.
 const photos = await Promise.all(
@@ -47,6 +49,7 @@ const photos = await Promise.all(
   title={t('meta.trip.title', { title })}
   description={data.summary[locale]}
   ogType="article"
+  ogImage={ogImage.src}
 >
   <link
     slot="head"

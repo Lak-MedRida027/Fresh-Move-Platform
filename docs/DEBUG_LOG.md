@@ -66,3 +66,28 @@ Notable bugs found while building the site: symptom, cause, fix.
 ## Wilaya list changed in 2026
 - Algeria went from 58 to 69 wilayas (law 26-06 of 4 April 2026; numbering decree in JO n° 40, June 2026).
   `src/data/wilayas.ts` has all 69 with the sources noted; a unit test checks there are 69 unique entries.
+
+## Home page Lighthouse performance 85 (target ≥ 90)
+- **Measured:** mobile Lighthouse, LCP 3.8 s, TBT 220 ms, 1.2 s of style/layout/paint on the main thread.
+- **Causes and fixes:**
+  1. `backdrop-filter: blur()` on the sticky header and photo buttons (repainted on every scroll frame):
+     replaced with solid backgrounds.
+  2. `text-wrap: pretty` on every paragraph (expensive line breaking): removed; headings keep `balance`.
+  3. Six render-blocking CSS files per page: `vite.build.cssCodeSplit: false` → one 38 KB stylesheet
+     (~7 KB compressed).
+  4. Preloading four font files competed with the hero image: preload only the headline weight per language.
+  5. The local test server didn't compress like Vercel does: added brotli/gzip so measurements are realistic.
+- **Result:** median of 3 runs: 92–96 performance; 100 accessibility / best practices / SEO.
+  TBT 220 ms → ~10 ms. Run `npm run lighthouse` to re-measure.
+
+## axe: decorative numbers below 3:1 contrast
+- **Symptom:** `color-contrast` (serious) on the "01–05" numbers in the personality cards.
+- **Fix:** coloured with `--fg-muted` (≥ 3:1, the large-text threshold) instead of `--border`.
+  We fixed the colour rather than hiding the numbers from the checker.
+
+## Brand link in the header was 40 px wide on small phones
+- **Fix:** `min-inline-size: 44px` (the e2e "touch targets" test checks every interactive element ≥ 44 px).
+
+## OG image rendered with fallback fonts
+- **Cause:** a `page.setContent()` page can't load `file://` fonts.
+- **Fix:** `scripts/make-og.mjs` inlines the woff2 files as data URIs and fails if `document.fonts.check()` is false.

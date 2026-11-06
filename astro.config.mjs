@@ -21,6 +21,9 @@ export default defineConfig({
       // Astro inlines small bundled scripts below this limit. 0 keeps every
       // script external so the CSP only has to allow the theme bootstrap hash.
       assetsInlineLimit: 0,
+      // One stylesheet for the whole site (~30 KB, ~7 KB compressed) instead of
+      // several render-blocking files per page.
+      cssCodeSplit: false,
     },
   },
   i18n: {
@@ -31,7 +34,7 @@ export default defineConfig({
   integrations: [
     sitemap({
       i18n: { defaultLocale: 'ar', locales: { ar: 'ar-DZ', en: 'en' } },
-      filter: (page) => !page.includes('/api/'),
+      filter: (page) => !page.includes('/api/') && !/\/404\/?$/.test(page),
     }),
   ],
 });

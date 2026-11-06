@@ -9,7 +9,7 @@ import JoinSection from '../components/JoinSection.astro';
 import InstagramButtons from '../components/InstagramButtons.astro';
 import heroImage from '../assets/hero/hero.jpg';
 import { REGIONS } from '../data/regions';
-import { MIN_AGE, SITE, STATS } from '../config/site';
+import { INSTAGRAM, MIN_AGE, SITE, STATS } from '../config/site';
 import { localizePath, useTranslations, type Locale, type TKey } from '../i18n';
 import { getFeaturedTrips } from '../lib/trips';
 
@@ -54,11 +54,32 @@ const stats: { value: number; label: TKey }[] = [
   { value: STATS.regions, label: 'stats.regions' },
 ];
 
+const siteUrl = (Astro.site ?? new URL(SITE.url)).href;
+// Structured data: a sports club with its Instagram profile (data block, not executed; CSP-safe).
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SportsClub',
+  '@id': `${siteUrl}#club`,
+  name: SITE.name,
+  alternateName: 'Fresh Move Club',
+  slogan: 'El move لي تفرح القلب',
+  description: t('meta.home.description'),
+  url: new URL(localizePath('/', locale), siteUrl).href,
+  logo: new URL('/icon-512.png', siteUrl).href,
+  image: new URL(`/og/og-${locale}.png`, siteUrl).href,
+  sport: ['Hiking', 'Camping', 'Outdoor adventure'],
+  areaServed: { '@type': 'Country', name: 'Algeria' },
+  address: { '@type': 'PostalAddress', addressCountry: 'DZ' },
+  sameAs: [INSTAGRAM.profile],
+  inLanguage: locale === 'ar' ? 'ar-DZ' : 'en',
+};
+
 const steps = [1, 2, 3, 4] as const;
 const faqs = [1, 2, 3, 4, 5, 6] as const;
 ---
 
 <BaseLayout locale={locale} title={t('meta.home.title')} description={t('meta.home.description')}>
+  <script slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
   <link
     slot="head"
     rel="preload"
@@ -469,7 +490,8 @@ const faqs = [1, 2, 3, 4, 5, 6] as const;
     font-size: 2.4rem;
     font-weight: 700;
     line-height: 1;
-    color: var(--border);
+    color: var(--fg-muted); /* decorative, but still ≥3:1 like large text */
+    opacity: 0.9;
   }
   .trait :global(.trait__icon) {
     color: var(--link);

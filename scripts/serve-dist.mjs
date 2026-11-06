@@ -4,6 +4,7 @@
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
+import { brotliCompressSync, gzipSync } from 'node:zlib';
 
 // Exactly what Vercel serves as static files.
 const root = resolve('.vercel/output/static');
@@ -65,8 +66,22 @@ createServer(async (req, res) => {
   // Mirror Vercel: /en/trips -> /en/trips/ for directory pages
   const file = await resolveFile(url.pathname);
   if (file) {
-    const body = await readFile(file);
-    res.writeHead(200, { ...headers, 'Content-Type': types[extname(file)] ?? 'application/octet-stream' });
+    let body = await readFile(file);
+    const type = types[extname(file)] ?? 'application/octet-stream';
+    const extra = {};
+    // Compress text like Vercel does, so Lighthouse numbers are realistic.
+    if (/text|javascript|json|xml|svg/.test(type)) {
+      const accept = String(req.headers['accept-encoding'] ?? '');
+      if (accept.includes('br')) {
+        body = brotliCompressSync(body);
+        extra['Content-Encoding'] = 'br';
+      } else if (accept.includes('gzip')) {
+        body = gzipSync(body);
+        extra['Content-Encoding'] = 'gzip';
+      }
+      extra.Vary = 'Accept-Encoding';
+    }
+    res.writeHead(200, { ...headers, ...extra, 'Content-Type': type });
     res.end(body);
     return;
   }

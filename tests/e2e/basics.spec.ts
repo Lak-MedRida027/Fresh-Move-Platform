@@ -106,11 +106,34 @@ test.describe('theme', () => {
   });
 });
 
-test('no CSP violations or script errors on load', async ({ page }) => {
+test('no CSP violations or script errors on any page', async ({ page }) => {
   const errors = watchErrors(page);
-  for (const path of ['/', '/en/']) {
+  await page.addInitScript(() => {
+    document.addEventListener('securitypolicyviolation', (e) => {
+      console.error(`CSP violation: ${e.violatedDirective} ${e.blockedURI}`);
+    });
+  });
+  // (/404/ is left out: it answers with HTTP 404, which browsers log by design.)
+  const paths = ['/', '/trips/', '/trips/djanet-tassili/', '/join/', '/privacy/'];
+  for (const path of [...paths, ...paths.map((p) => `/en${p}`)]) {
     await page.goto(path);
     await page.waitForLoadState('networkidle');
   }
+  // Open the lightbox and submit the form too (they load their own scripts).
+  await page.goto('/trips/jijel/');
+  await page.locator('[data-gallery-item]').first().click();
+  await page.keyboard.press('Escape');
   expect(errors).toEqual([]);
+});
+
+test('CSP header is served and only the theme script is inline', async ({ page, request }) => {
+  const res = await request.get('/');
+  const csp = res.headers()['content-security-policy'] ?? '';
+  expect(csp).toContain("script-src 'self' 'sha256-");
+  expect(res.headers()['x-content-type-options']).toBe('nosniff');
+  await page.goto('/');
+  const inline = await page.$$eval('script:not([src])', (els) =>
+    (els as HTMLScriptElement[]).filter((s) => !s.type || s.type === 'module' || s.type === 'text/javascript').length,
+  );
+  expect(inline).toBe(1); // the theme bootstrap
 });

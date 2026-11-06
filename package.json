@@ -20,7 +20,8 @@
     "copy-review": "node scripts/copy-review.mjs",
     "placeholders": "node scripts/make-placeholders.mjs",
     "icons": "node scripts/make-icons.mjs",
-    "screenshots": "node scripts/screenshots.mjs"
+    "screenshots": "node scripts/screenshots.mjs",
+    "lighthouse": "node scripts/lighthouse.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",
@@ -39,6 +40,7 @@
     "eslint": "^10.14.0",
     "eslint-plugin-astro": "^3.2.1",
     "globals": "^17.14.0",
+    "lighthouse": "^13.6.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.1",
     "vitest": "^5.1.0",

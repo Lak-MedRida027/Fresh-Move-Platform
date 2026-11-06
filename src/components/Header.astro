@@ -79,8 +79,7 @@ const joinHref = localizePath('/join/', locale);
     position: sticky;
     inset-block-start: 0;
     z-index: 50;
-    background: color-mix(in srgb, var(--bg) 90%, transparent);
-    backdrop-filter: blur(10px);
+    background: var(--bg); /* solid: a blurred sticky header is costly on low-end phones */
     border-block-end: 1px solid var(--border);
   }
   .site-header__bar {
@@ -96,6 +95,7 @@ const joinHref = localizePath('/join/', locale);
     color: var(--fg);
     text-decoration: none;
     min-block-size: var(--tap);
+    min-inline-size: var(--tap);
     margin-inline-end: auto;
   }
   .site-header__name {
