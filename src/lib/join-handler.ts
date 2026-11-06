@@ -52,9 +52,22 @@ export interface RateLimiter {
   hit(key: string, now: number): boolean;
 }
 
-/** Best-effort in-memory limiter (per serverless instance): `max` hits per `windowMs`. */
-export function createRateLimiter(max = 5, windowMs = 10 * 60 * 1000): RateLimiter {
+/**
+ * Best-effort in-memory limiter (per serverless instance): `max` hits per
+ * `windowMs` per key. Memory is bounded by evicting only expired keys; if it
+ * is still full of live keys, new keys are refused (fail closed) instead of
+ * wiping everyone's counters.
+ */
+export function createRateLimiter(max = 5, windowMs = 10 * 60 * 1000, maxKeys = 5000): RateLimiter {
   const hits = new Map<string, number[]>();
+
+  function evictExpired(now: number) {
+    for (const [key, times] of hits) {
+      const newest = times[times.length - 1] ?? 0;
+      if (now - newest >= windowMs) hits.delete(key);
+    }
+  }
+
   return {
     hit(key, now) {
       const recent = (hits.get(key) ?? []).filter((t) => now - t < windowMs);
@@ -62,9 +75,12 @@ export function createRateLimiter(max = 5, windowMs = 10 * 60 * 1000): RateLimit
         hits.set(key, recent);
         return false;
       }
+      if (!hits.has(key) && hits.size >= maxKeys) {
+        evictExpired(now);
+        if (hits.size >= maxKeys) return false;
+      }
       recent.push(now);
       hits.set(key, recent);
-      if (hits.size > 5000) hits.clear(); // keep memory bounded
       return true;
     },
   };
@@ -87,10 +103,45 @@ function json(status: number, body: { ok: true } | ErrorBody, extra: Record<stri
   });
 }
 
-function clientIp(request: Request, fallback?: string): string {
+/**
+ * Rate-limit key. Prefer the address the platform gives us (Astro's
+ * `clientAddress`, which the Vercel adapter takes from Vercel's edge). Vercel
+ * overwrites x-real-ip / x-forwarded-for, so those are only a fallback; a
+ * client-sent list is never trusted beyond its last (proxy-appended) entry.
+ * Requests with no address at all share one bucket (fail closed).
+ */
+export function rateLimitKey(request: Request, clientAddress?: string): string {
+  if (clientAddress) return clientAddress;
+  const real = request.headers.get('x-real-ip')?.trim();
+  if (real) return real;
   const fwd = request.headers.get('x-forwarded-for');
-  if (fwd) return fwd.split(',')[0]!.trim();
-  return request.headers.get('x-real-ip') ?? fallback ?? 'unknown';
+  const last = fwd?.split(',').pop()?.trim();
+  return last || 'unknown';
+}
+
+/** Reads the body up to `limit` bytes; returns null as soon as it goes over. */
+async function readLimited(request: Request, limit: number): Promise<string | null> {
+  if (!request.body) return '';
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > limit) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const c of chunks) {
+    bytes.set(c, offset);
+    offset += c.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
 }
 
 export function createJoinHandler(deps: JoinDeps) {
@@ -104,12 +155,12 @@ export function createJoinHandler(deps: JoinDeps) {
     const type = (request.headers.get('content-type') ?? '').split(';')[0]!.trim().toLowerCase();
     if (type !== 'application/json') return json(415, { ok: false, error: 'unsupported_media_type' });
 
+    // Size limit: reject on the declared length, and again while streaming
+    // (covers chunked bodies with no Content-Length).
     const declared = Number(request.headers.get('content-length') ?? '0');
     if (declared > MAX_BODY_BYTES) return json(413, { ok: false, error: 'payload_too_large' });
-    const text = await request.text();
-    if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) {
-      return json(413, { ok: false, error: 'payload_too_large' });
-    }
+    const text = await readLimited(request, MAX_BODY_BYTES);
+    if (text === null) return json(413, { ok: false, error: 'payload_too_large' });
 
     let raw: unknown;
     try {
@@ -129,7 +180,7 @@ export function createJoinHandler(deps: JoinDeps) {
       return json(400, { ok: false, error: 'rejected' });
     }
 
-    if (!deps.rateLimiter.hit(clientIp(request, clientAddress), now)) {
+    if (!deps.rateLimiter.hit(rateLimitKey(request, clientAddress), now)) {
       return json(429, { ok: false, error: 'rate_limited' }, { 'Retry-After': '600' });
     }
 

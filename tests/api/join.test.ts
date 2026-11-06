@@ -182,3 +182,53 @@ describe('POST /api/join', () => {
     expect(text).not.toContain('script.google.com');
   });
 });
+
+describe('hardening (security review)', () => {
+  it('keys the rate limit on the platform address, not spoofable headers', async () => {
+    for (let i = 0; i < 5; i++) {
+      // Attacker rotates X-Forwarded-For, but the platform address stays the same.
+      const r = req(valid, { ip: `10.0.0.${i}` });
+      expect((await handle(r, '198.51.100.50')).status).toBe(200);
+    }
+    expect((await handle(req(valid, { ip: '10.9.9.9' }), '198.51.100.50')).status).toBe(429);
+  });
+
+  it('only trusts the last (proxy-appended) X-Forwarded-For entry as a fallback', async () => {
+    const { rateLimitKey } = await import('../../src/lib/join-handler');
+    const r = new Request('https://x/api/join', { headers: { 'x-forwarded-for': '1.2.3.4, 203.0.113.9' } });
+    expect(rateLimitKey(r)).toBe('203.0.113.9');
+    expect(rateLimitKey(r, '192.0.2.1')).toBe('192.0.2.1');
+    expect(rateLimitKey(new Request('https://x/'))).toBe('unknown');
+  });
+
+  it('rejects an oversized chunked body with no Content-Length while streaming', async () => {
+    const big = new TextEncoder().encode(JSON.stringify({ ...valid, fullName: 'x'.repeat(MAX_BODY_BYTES * 4) }));
+    let pulled = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (pulled >= big.length) return controller.close();
+        controller.enqueue(big.slice(pulled, pulled + 1024));
+        pulled += 1024;
+      },
+    });
+    const r = new Request('https://fresh-move.vercel.app/api/join', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: stream,
+      duplex: 'half',
+    } as RequestInit);
+    const res = await handle(r, '198.51.100.60');
+    expect(res.status).toBe(413);
+    expect(pulled).toBeLessThan(big.length); // stopped reading early
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('limiter evicts only expired keys and fails closed when full of live keys', () => {
+    const limiter = createRateLimiter(1, 1000, 2);
+    expect(limiter.hit('a', 0)).toBe(true);
+    expect(limiter.hit('b', 0)).toBe(true);
+    expect(limiter.hit('c', 10)).toBe(false); // full of live keys: deny, don't wipe
+    expect(limiter.hit('a', 10)).toBe(false); // 'a' still limited (counters kept)
+    expect(limiter.hit('c', 2000)).toBe(true); // a and b expired → evicted → room for c
+  });
+});

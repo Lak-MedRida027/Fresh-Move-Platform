@@ -91,3 +91,13 @@ Notable bugs found while building the site: symptom, cause, fix.
 ## OG image rendered with fallback fonts
 - **Cause:** a `page.setContent()` page can't load `file://` fonts.
 - **Fix:** `scripts/make-og.mjs` inlines the woff2 files as data URIs and fails if `document.fonts.check()` is false.
+
+## Security review of /api/join (after first push)
+An automated review flagged three weaknesses; all fixed with tests in `tests/api/join.test.ts`:
+1. **Rate-limit key from a spoofable header.** The limiter used the first `X-Forwarded-For` entry, which a
+   client can set. Now it uses Astro's `clientAddress` (from Vercel's edge) first, then `x-real-ip`, then
+   only the last, proxy-appended `X-Forwarded-For` entry.
+2. **Size limit checked after buffering.** A chunked body with no `Content-Length` was read in full
+   before the 4 KB check. Now the body is streamed and reading stops at 4 KB (413).
+3. **Limiter cleared all counters when full.** Reaching 5,000 keys wiped every counter (fail open).
+   Now only expired keys are evicted, and if it's still full of live keys new keys are refused.
