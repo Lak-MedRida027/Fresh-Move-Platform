@@ -11,7 +11,9 @@ const header = (key: string) => all.find((h) => h.key === key)?.value ?? '';
 describe('security headers (vercel.json)', () => {
   it('CSP allows the theme bootstrap by its exact SHA-256 hash', () => {
     const hash = createHash('sha256').update(THEME_INIT_SCRIPT).digest('base64');
-    expect(header('Content-Security-Policy')).toContain(`'sha256-${hash}'`);
+    expect(header('Content-Security-Policy'), `put 'sha256-${hash}' in vercel.json script-src`).toContain(
+      `'sha256-${hash}'`,
+    );
   });
 
   it('CSP has no unsafe-inline / unsafe-eval and blocks framing', () => {
