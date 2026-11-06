@@ -42,3 +42,27 @@ Notable bugs found while building the site: symptom, cause, fix.
 ## Two client scripts both declared `items`
 - **Cause:** a `.ts` file without imports/exports is a global script for TypeScript.
 - **Fix:** `export {}` in `src/scripts/lightbox.ts` and `src/scripts/trip-filters.ts`.
+
+## Empty error badges showed on every form field
+- **Symptom:** e2e "phone error disappears once fixed" failed; every field had a red "!" under it.
+- **Cause:** `.field__error { display: flex }` overrides the browser's `[hidden] { display: none }`.
+- **Fix:** global `[hidden] { display: none !important; }` in `global.css`, so component display rules can
+  never un-hide hidden elements.
+
+## Two elements matched `[data-failure]`
+- **Cause:** the form carried its failure message in a `data-failure` attribute, the same name as the
+  failure box's hook.
+- **Fix:** renamed the attribute to `data-failure-message`.
+
+## Build output moved when the server route was added
+- **Cause:** with an on-demand route, Astro writes static files to `dist/client/` instead of `dist/`.
+- **Fix:** `scripts/serve-dist.mjs` serves `.vercel/output/static`, exactly what Vercel serves.
+
+## Shell escaping ate a regex backslash
+- **Symptom:** 15 phone tests failed after a lint fix.
+- **Cause:** `sed` turned ` ` into `00A0` inside the character class, so zeros were stripped.
+- **Fix:** removed it (`\s` already matches no-break spaces); the unit tests caught it immediately.
+
+## Wilaya list changed in 2026
+- Algeria went from 58 to 69 wilayas (law 26-06 of 4 April 2026; numbering decree in JO n° 40, June 2026).
+  `src/data/wilayas.ts` has all 69 with the sources noted; a unit test checks there are 69 unique entries.

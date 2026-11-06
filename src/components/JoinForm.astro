@@ -1,0 +1,442 @@
+---
+import Icon from './Icon.astro';
+import { INSTAGRAM, MAX_AGE, MIN_AGE } from '../config/site';
+import { WILAYAS, wilayaLabel } from '../data/wilayas';
+import { localizePath, useTranslations, type Locale, type TKey } from '../i18n';
+import type { ErrorCode } from '../lib/membership';
+
+interface Props {
+  locale: Locale;
+  /** Unique prefix so the form could appear twice on a page. */
+  idPrefix?: string;
+  /** Heading level of the success message (one below the section heading). */
+  successLevel?: 'h2' | 'h3';
+}
+const { locale, idPrefix = 'join', successLevel = 'h3' } = Astro.props;
+const SuccessHeading = successLevel;
+const t = useTranslations(locale);
+const id = (name: string) => `${idPrefix}-${name}`;
+
+const codes: ErrorCode[] = [
+  'required',
+  'name.length',
+  'name.invalid',
+  'phone.invalid',
+  'wilaya.invalid',
+  'age.invalid',
+  'age.min',
+  'age.max',
+  'consent.required',
+];
+const messages = Object.fromEntries(
+  codes.map((c) => [c, t(`form.error.${c}` as TKey, { minAge: MIN_AGE, maxAge: MAX_AGE })]),
+);
+const labels = {
+  fullName: t('form.name.label'),
+  phone: t('form.phone.label'),
+  wilaya: t('form.wilaya.label'),
+  age: t('form.age.label'),
+  consent: t('form.consent.label'),
+};
+---
+
+<div class="join-form" data-join-root>
+  <form
+    class="form"
+    novalidate
+    data-join-form
+    data-lang={locale}
+    data-messages={JSON.stringify(messages)}
+    data-labels={JSON.stringify(labels)}
+    data-sending={t('form.sending')}
+    data-rate-limited={t('form.failure.rateLimited')}
+    data-failure-message={t('form.failure.text')}
+  >
+    <div class="form__summary" tabindex="-1" aria-live="assertive" data-error-summary hidden>
+      <p class="form__summary-title">{t('form.errorSummary')}</p>
+      <ul data-error-list></ul>
+    </div>
+
+    <p class="form__note muted">{t('form.allRequired')}</p>
+
+    <div class="field">
+      <label class="field__label" for={id('name')}>{t('form.name.label')}</label>
+      <p class="field__hint" id={id('name-hint')}>{t('form.name.hint')}</p>
+      <input
+        class="field__input"
+        id={id('name')}
+        name="fullName"
+        type="text"
+        autocomplete="name"
+        autocapitalize="words"
+        maxlength="60"
+        required
+        aria-describedby={`${id('name-hint')} ${id('name-error')}`}
+        data-field="fullName"
+      />
+      <p class="field__error" id={id('name-error')} data-error-for="fullName" hidden></p>
+    </div>
+
+    <div class="field">
+      <label class="field__label" for={id('phone')}>{t('form.phone.label')}</label>
+      <p class="field__hint" id={id('phone-hint')}>{t('form.phone.hint')}</p>
+      <input
+        class="field__input field__input--ltr"
+        id={id('phone')}
+        name="phone"
+        type="tel"
+        inputmode="tel"
+        autocomplete="tel"
+        dir="ltr"
+        maxlength="20"
+        required
+        aria-describedby={`${id('phone-hint')} ${id('phone-error')}`}
+        data-field="phone"
+      />
+      <p class="field__error" id={id('phone-error')} data-error-for="phone" hidden></p>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label class="field__label" for={id('wilaya')}>{t('form.wilaya.label')}</label>
+        <div class="field__select">
+          <select
+            class="field__input"
+            id={id('wilaya')}
+            name="wilaya"
+            required
+            aria-describedby={id('wilaya-error')}
+            data-field="wilaya"
+          >
+            <option value="">{t('form.wilaya.placeholder')}</option>
+            {WILAYAS.map((w) => <option value={w.code}>{wilayaLabel(w, locale)}</option>)}
+          </select>
+          <Icon name="chevron-down" size={18} class="field__select-icon" />
+        </div>
+        <p class="field__error" id={id('wilaya-error')} data-error-for="wilaya" hidden></p>
+      </div>
+
+      <div class="field field--age">
+        <label class="field__label" for={id('age')}>{t('form.age.label')}</label>
+        <input
+          class="field__input field__input--ltr"
+          id={id('age')}
+          name="age"
+          type="text"
+          inputmode="numeric"
+          autocomplete="off"
+          dir="ltr"
+          maxlength="3"
+          required
+          aria-describedby={`${id('age-hint')} ${id('age-error')}`}
+          data-field="age"
+        />
+        <p class="field__hint" id={id('age-hint')}>{t('form.age.hint', { minAge: MIN_AGE })}</p>
+        <p class="field__error" id={id('age-error')} data-error-for="age" hidden></p>
+      </div>
+    </div>
+
+    <!-- Honeypot: hidden from people and assistive tech; bots tend to fill it. -->
+    <div class="form__trap" aria-hidden="true">
+      <label for={id('website')}>{t('form.honeypot')}</label>
+      <input id={id('website')} name="website" type="text" tabindex="-1" autocomplete="off" />
+    </div>
+
+    <div class="field field--check">
+      <div class="check">
+        <input
+          class="check__box"
+          id={id('consent')}
+          name="consent"
+          type="checkbox"
+          required
+          aria-describedby={id('consent-error')}
+          data-field="consent"
+        />
+        <label class="check__label" for={id('consent')}>{t('form.consent.label')}</label>
+      </div>
+      <a class="check__link" href={localizePath('/privacy/', locale)}>{t('form.consent.privacy')}</a>
+      <p class="field__error" id={id('consent-error')} data-error-for="consent" hidden></p>
+    </div>
+
+    <button class="btn btn-primary form__submit" type="submit" data-submit>
+      <span class="form__spinner" aria-hidden="true"></span>
+      <span data-submit-label>{t('form.submit')}</span>
+    </button>
+
+    <div class="form__failure" role="alert" data-failure hidden>
+      <p class="form__failure-title">{t('form.failure.title')}</p>
+      <p data-failure-text>{t('form.failure.text')}</p>
+      <a class="btn btn-ghost" href={INSTAGRAM.dm} target="_blank" rel="noopener" data-instagram-link>
+        <Icon name="message" size={20} />
+        <span>{t('form.failure.dm')}</span>
+        <span class="visually-hidden">{t('a11y.opensInstagram')}</span>
+      </a>
+    </div>
+
+    <noscript>
+      <p class="form__noscript">
+        {t('form.noscript')}
+        <a href={INSTAGRAM.dm}>{t('form.failure.dm')}</a>
+      </p>
+    </noscript>
+  </form>
+
+  <div class="form__success" data-success hidden>
+    <Icon name="check" size={40} class="form__success-icon" />
+    <SuccessHeading class="form__success-title" tabindex="-1" data-success-title>
+      {t('form.success.title')}
+    </SuccessHeading>
+    <p>{t('form.success.text')}</p>
+    <div class="form__success-actions">
+      <a class="btn btn-primary" href={INSTAGRAM.dm} target="_blank" rel="noopener" data-instagram-link>
+        <Icon name="message" size={20} />
+        <span>{t('form.success.dm')}</span>
+        <span class="visually-hidden">{t('a11y.opensInstagram')}</span>
+      </a>
+      <a class="btn btn-ghost" href={INSTAGRAM.profile} target="_blank" rel="noopener" data-instagram-link>
+        <Icon name="instagram" size={20} />
+        <span>{t('form.success.follow')}</span>
+        <span class="visually-hidden">{t('a11y.opensInstagram')}</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+  import '../scripts/join-form.ts';
+</script>
+
+<style>
+  .join-form {
+    padding: clamp(1.25rem, 4vw, 2rem);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+  .form {
+    display: grid;
+    gap: 1.25rem;
+  }
+  .form__note {
+    font-size: 0.9rem;
+  }
+  .field {
+    display: grid;
+    gap: 0.35rem;
+    min-inline-size: 0;
+  }
+  .field-row {
+    display: grid;
+    gap: 1.25rem;
+  }
+  @media (min-width: 36rem) {
+    .field-row {
+      grid-template-columns: 1fr 9rem;
+      align-items: start;
+    }
+  }
+  .field__label {
+    font-weight: 600;
+  }
+  .field__hint {
+    font-size: 0.85rem;
+    color: var(--fg-muted);
+  }
+  .field__input {
+    inline-size: 100%;
+    min-block-size: 48px;
+    padding: 0.6rem 0.9rem;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 1rem; /* ≥16px stops iOS zooming into the field */
+    transition: border-color 0.15s var(--ease-out);
+  }
+  .field__input:hover {
+    border-color: var(--fg-muted);
+  }
+  .field__input:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 1px;
+    border-color: var(--focus);
+  }
+  .field__input--ltr {
+    text-align: start;
+  }
+  :global([dir='rtl']) .field__input--ltr {
+    text-align: right;
+  }
+  .field__input[aria-invalid='true'] {
+    border-color: var(--error);
+  }
+  .field__select {
+    position: relative;
+  }
+  .field__select select {
+    appearance: none;
+    padding-inline-end: 2.5rem;
+  }
+  .field__select :global(.field__select-icon) {
+    position: absolute;
+    inset-inline-end: 0.8rem;
+    inset-block-start: 50%;
+    translate: 0 -50%;
+    pointer-events: none;
+    color: var(--fg-muted);
+  }
+  .field__error {
+    display: flex;
+    gap: 0.4rem;
+    color: var(--error);
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+  .field__error::before {
+    content: '!';
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    inline-size: 1.2em;
+    block-size: 1.2em;
+    margin-block-start: 0.2em;
+    border-radius: 50%;
+    background: var(--error);
+    color: var(--bg);
+    font-size: 0.8em;
+    line-height: 1;
+  }
+
+  .check {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  .check__box {
+    flex: none;
+    inline-size: 1.5rem;
+    block-size: 1.5rem;
+    margin: 0.15rem 0 0;
+    accent-color: var(--accent-olive);
+    cursor: pointer;
+  }
+  .check__label {
+    cursor: pointer;
+  }
+  .check__link {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: var(--tap);
+    margin-inline-start: 2.25rem;
+    inline-size: fit-content;
+  }
+
+  .form__trap {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    inset-inline-start: -10000px;
+  }
+
+  .form__submit {
+    inline-size: 100%;
+    min-block-size: 52px;
+    font-size: 1.05rem;
+  }
+  .form__submit[aria-busy='true'] {
+    opacity: 0.85;
+    cursor: progress;
+  }
+  .form__spinner {
+    display: none;
+    inline-size: 1.1em;
+    block-size: 1.1em;
+    border: 2px solid currentColor;
+    border-inline-end-color: transparent;
+    border-radius: 50%;
+  }
+  .form__submit[aria-busy='true'] .form__spinner {
+    display: inline-block;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .form__summary {
+    padding: 1rem 1.1rem;
+    border: 1.5px solid var(--error);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--error) 8%, var(--surface));
+  }
+  .form__summary:focus {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+  .form__summary-title {
+    font-weight: 700;
+    margin-block-end: 0.4rem;
+  }
+  .form__summary ul {
+    margin: 0;
+    padding-inline-start: 1.2rem;
+  }
+  .form__summary :global(a) {
+    color: var(--error);
+    font-weight: 600;
+  }
+
+  .form__failure {
+    display: grid;
+    gap: 0.6rem;
+    justify-items: start;
+    padding: 1rem 1.1rem;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--error);
+  }
+  .form__failure[hidden] {
+    display: none;
+  }
+  .form__failure-title {
+    font-weight: 700;
+    color: var(--error);
+  }
+  .form__noscript {
+    color: var(--fg-muted);
+  }
+
+  .form__success {
+    display: grid;
+    gap: 0.9rem;
+    justify-items: start;
+  }
+  .form__success[hidden] {
+    display: none;
+  }
+  .form__success :global(.form__success-icon) {
+    color: var(--success);
+  }
+  .form__success-title {
+    font-size: clamp(1.6rem, 6vw, 2.2rem);
+  }
+  .form__success-title:focus {
+    outline: none;
+  }
+  .form__success-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  @media (max-width: 30rem) {
+    .form__success-actions .btn {
+      flex: 1 1 100%;
+    }
+  }
+</style>

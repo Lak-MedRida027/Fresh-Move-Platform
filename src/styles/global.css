@@ -13,6 +13,11 @@
 @import './tokens.css';
 
 /* ---------- Reset ---------- */
+/* Component display rules (flex/grid) must never beat the hidden attribute. */
+[hidden] {
+  display: none !important;
+}
+
 *,
 *::before,
 *::after {

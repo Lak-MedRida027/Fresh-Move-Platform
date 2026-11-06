@@ -253,6 +253,44 @@ formal (MSA) or too "tourism agency", and wrong spellings of place names.
 | `join.title` | ولّي عضو في Fresh Move | Become a Fresh Move member |
 | `join.intro` | التسجيل بلاش وما يدّيش دقيقة. من بعد، الخرجات تتعلن وتتحجز في Instagram. | It's free and takes a minute. After that, trips are announced and booked on Instagram. |
 
+## Membership form
+
+| Key | Darja | English |
+|---|---|---|
+| `form.allRequired` | كامل الخانات لازم يتعمّرو. | All fields are required. |
+| `form.name.label` | الاسم واللقب | Full name |
+| `form.name.hint` | بالحروف العربية ولا اللاتينية. | Arabic or Latin letters. |
+| `form.phone.label` | رقم التيليفون ولا واتساب | Phone / WhatsApp |
+| `form.phone.hint` | مثال: 0661 23 45 67 ولا ‎+213 661 23 45 67 | e.g. 0661 23 45 67 or +213 661 23 45 67 |
+| `form.wilaya.label` | الولاية | Wilaya |
+| `form.wilaya.placeholder` | اختار الولاية تاعك | Choose your wilaya |
+| `form.age.label` | العمر | Age |
+| `form.age.hint` | لازم يكون عندك {minAge} سنة ولا كثر. | You must be {minAge} or older. |
+| `form.consent.label` | نوافق باللي Fresh Move تحفظ المعلومات تاعي باش يتواصلو معايا على النادي. | I agree that Fresh Move stores my info to contact me about the club. |
+| `form.consent.privacy` | اقرا الخصوصية | Read the privacy notice |
+| `form.submit` | سجّلني | Sign me up |
+| `form.sending` | راهو يتبعث… | Sending… |
+| `form.noscript` | باش تسجّل هنا لازم JavaScript. تقدر تبعثلنا DM في Instagram ونسجّلوك حنا. | This form needs JavaScript. You can also DM us on Instagram and we will sign you up. |
+| `form.honeypot` | خلّي هاد الخانة فارغة | Leave this field empty |
+| `form.errorSummary` | صلّح هاد الحوايج وعاود: | Please fix the following: |
+| `form.error.required` | هاد الخانة لازم تتعمّر. | This field is required. |
+| `form.error.name.length` | الاسم لازم يكون بين 2 و 60 حرف. | Name must be 2 to 60 characters. |
+| `form.error.name.invalid` | استعمل غير الحروف (عربية ولا لاتينية)، الفراغ، - و '. | Use letters only (Arabic or Latin), spaces, hyphens and apostrophes. |
+| `form.error.phone.invalid` | الرقم ماشي صحيح. لازم يبدا بـ 05 ولا 06 ولا 07 ومن بعد 8 أرقام، ولا ‎+213. | That number doesn't look right. Use 05, 06 or 07 followed by 8 digits, or +213. |
+| `form.error.wilaya.invalid` | اختار ولاية من القائمة. | Pick a wilaya from the list. |
+| `form.error.age.invalid` | اكتب العمر بالأرقام. | Enter your age as a number. |
+| `form.error.age.min` | لازم يكون عندك {minAge} سنة ولا كثر باش تسجّل. | You need to be at least {minAge} to join. |
+| `form.error.age.max` | العمر لازم يكون {maxAge} ولا أقل. | Age must be {maxAge} or under. |
+| `form.error.consent.required` | لازم توافق باش نقدرو نحفظو المعلومات تاعك. | Please tick the box so we can store your info. |
+| `form.success.title` | مرحبا بيك في العايلة! 🍀 | Welcome to the crew! 🍀 |
+| `form.success.text` | التسجيل تاعك وصلنا. دروك تابعنا في Instagram: الخرجات تتعلن وتتحجز غير تمّا. | We've got your details. Now follow us on Instagram: that's the only place trips are announced and booked. |
+| `form.success.follow` | تابعنا في Instagram | Follow us on Instagram |
+| `form.success.dm` | بعثلنا DM باش تجي في الخرجة الجاية | DM us to join the next trip |
+| `form.failure.title` | ما خدمتش هاد المرة | That didn't go through |
+| `form.failure.text` | صرا مشكل وما قدرناش نسجّلوك. عاود من بعد، ولا بعثلنا DM في Instagram ونسجّلوك حنا. | Something went wrong and we couldn't save your sign-up. Try again later, or DM us on Instagram and we'll sign you up. |
+| `form.failure.rateLimited` | بعثت بزاف المرات. استنّى شوية وعاود. | Too many attempts. Wait a few minutes and try again. |
+| `form.failure.dm` | بعثلنا DM في Instagram | DM us on Instagram |
+
 ## Privacy notice (TODO(owner): review, not legal advice)
 
 | Key | Darja | English |

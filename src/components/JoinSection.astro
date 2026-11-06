@@ -1,5 +1,6 @@
 ---
 import SectionHeading from './SectionHeading.astro';
+import JoinForm from './JoinForm.astro';
 import { useTranslations, type Locale } from '../i18n';
 
 interface Props {
@@ -20,7 +21,7 @@ const t = useTranslations(locale);
       id="join-title"
       level={asPage ? 'h1' : 'h2'}
     />
-    <slot />
+    <JoinForm locale={locale} successLevel={asPage ? 'h2' : 'h3'} />
   </div>
 </section>
 

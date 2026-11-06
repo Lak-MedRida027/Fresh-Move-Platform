@@ -5,7 +5,8 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 
-const root = resolve('dist');
+// Exactly what Vercel serves as static files.
+const root = resolve('.vercel/output/static');
 const port = Number(process.argv[2] ?? process.env.PORT ?? 4321);
 const vercel = JSON.parse(await readFile('vercel.json', 'utf8'));
 
