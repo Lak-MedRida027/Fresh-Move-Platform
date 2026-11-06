@@ -101,3 +101,17 @@ An automated review flagged three weaknesses; all fixed with tests in `tests/api
    before the 4 KB check. Now the body is streamed and reading stops at 4 KB (413).
 3. **Limiter cleared all counters when full.** Reaching 5,000 keys wiped every counter (fail open).
    Now only expired keys are evicted, and if it's still full of live keys new keys are refused.
+
+## Live Lighthouse home score swung between 79 and 99
+- **Measured:** 3-run medians on the live site gave 79–84 for the home page (TBT 500–800 ms), while a
+  single run moments later gave 99 / TBT 0 ms.
+- **Cause:** Lighthouse simulates a slow phone by multiplying the CPU time it observes; runs made while
+  the machine was busy (e2e suite just before) inflated TBT. Re-measured with 5 runs on an idle machine:
+  93 / 98 / 98 / 99.
+- **Tried and reverted:** `content-visibility: auto` on home sections cut layout work, but made the hero's
+  "Join the club" anchor land short of the form on phones (the browser only estimates skipped sections'
+  heights). The e2e test "hero CTA scrolls to it" caught it. A working CTA beats a few Lighthouse points.
+
+## e2e suite runs against the live site
+- `BASE_URL=https://freshmove-seven.vercel.app npx playwright test` runs every e2e + axe test against a
+  deployment (no local server). One test had a `localhost` regex; it now checks the pathname instead.

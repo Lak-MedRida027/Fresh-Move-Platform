@@ -25,7 +25,7 @@ test.describe('language and direction', () => {
     await page.locator('header [data-lang-switch]').click();
     await expect(page).toHaveURL(/\/en\/$/);
     await page.locator('header [data-lang-switch]').click();
-    await expect(page).toHaveURL(/localhost:\d+\/$/);
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/');
   });
 
   test('hreflang alternates and canonical are present', async ({ page }) => {
