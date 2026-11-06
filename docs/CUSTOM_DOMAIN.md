@@ -25,16 +25,14 @@ For a `.dz` domain, the registrar is managed through CERIST / accredited reselle
 
 ## 3. Tell the site its new address
 
-The address appears in canonical URLs, `hreflang` links, the sitemap, Open Graph tags and JSON-LD.
-Update it in **three** places:
+The address appears in canonical URLs, `hreflang` links, the sitemap, `robots.txt`, Open Graph tags and
+JSON-LD. **Usually nothing to change:** `astro.config.mjs` reads Vercel's `VERCEL_PROJECT_PRODUCTION_URL`
+at build time, which becomes your custom domain once it's the production domain. Just **redeploy** after
+the domain is active (Deployments → … → Redeploy).
 
-1. **Vercel env var (recommended):** Settings → Environment Variables → add `SITE_URL` =
-   `https://freshmove.club` for Production. `astro.config.mjs` reads it at build time.
-   (Or change the fallback value in `astro.config.mjs` directly.)
-2. `src/config/site.ts` → `SITE.url`.
-3. `public/robots.txt` → the `Sitemap:` line.
-
-Then redeploy.
+If the wrong domain still shows up (e.g. you have several domains), force it with an environment variable:
+Settings → Environment Variables → `SITE_URL` = `https://freshmove.club` (Production), then redeploy.
+Optionally also update the fallback in `src/config/site.ts` → `SITE.url`.
 
 ## 4. Check
 

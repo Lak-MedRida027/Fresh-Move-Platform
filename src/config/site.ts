@@ -4,8 +4,8 @@
 export const SITE = {
   name: 'Fresh Move',
   handle: '@fresh_move1',
-  /** Production URL. Keep in sync with `site` in astro.config.mjs (SITE_URL env). */
-  url: 'https://fresh-move.vercel.app',
+  /** Fallback only: pages use `Astro.site` (set in astro.config.mjs from Vercel's production URL). */
+  url: 'https://freshmove-seven.vercel.app',
 } as const;
 
 export const INSTAGRAM = {

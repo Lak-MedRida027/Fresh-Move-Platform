@@ -10,7 +10,7 @@ outdoor adventure and travel club: hiking, desert, camping, coast and heritage.
 - Trips are **only** booked on Instagram; the site never takes bookings or payments
 - Dark / light mode, mobile first (most visitors come from the Instagram in-app browser)
 
-Live: **https://fresh-move.vercel.app** <!-- TODO: update after deploy if the URL differs -->
+Live: **https://freshmove-seven.vercel.app**
 
 ## Stack
 
@@ -71,7 +71,7 @@ every pull request gets a preview URL. Manual deploy: `npx vercel --prod`.
 |---|---|
 | `SHEETS_WEBHOOK_URL` | Google Apps Script Web App URL (server-only) |
 | `SHEETS_WEBHOOK_SECRET` | Shared secret, same as `SHARED_SECRET` in Apps Script (server-only) |
-| `SITE_URL` | Optional. Public URL if not `https://fresh-move.vercel.app` (custom domain) |
+| `SITE_URL` | Optional override of the public URL. Not needed: the build uses Vercel's production domain automatically |
 
 These are read with `process.env` inside the server route only and never reach the browser.
 Setup guide: [docs/GOOGLE_SHEETS_SETUP.md](docs/GOOGLE_SHEETS_SETUP.md).

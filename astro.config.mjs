@@ -3,8 +3,16 @@ import { defineConfig } from 'astro/config';
 import vercel from '@astrojs/vercel';
 import sitemap from '@astrojs/sitemap';
 
-// Change SITE_URL (or this fallback) when a custom domain is connected. See docs/CUSTOM_DOMAIN.md.
-const SITE = process.env.SITE_URL ?? 'https://fresh-move.vercel.app';
+// Public URL used for canonical links, hreflang, sitemap, robots.txt and social cards.
+// 1. SITE_URL if set (e.g. a custom domain), else
+// 2. the project's production domain, which Vercel provides at build time
+//    (it switches to a custom domain automatically once one is connected), else
+// 3. the current vercel.app address. See docs/CUSTOM_DOMAIN.md.
+const SITE =
+  process.env.SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : 'https://freshmove-seven.vercel.app');
 
 export default defineConfig({
   site: SITE,
