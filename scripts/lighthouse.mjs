@@ -7,7 +7,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from '@playwright/test';
 
-const base = (process.argv[2] ?? 'http://localhost:4321').replace(/\/$/, '');
+const baseUrl = new URL(process.argv[2] ?? 'http://localhost:4321');
+if (!['http:', 'https:'].includes(baseUrl.protocol)) throw new Error('Base URL must be http(s)');
+const base = baseUrl.origin + baseUrl.pathname.replace(/\/$/, '');
+const LH_CLI = 'node_modules/lighthouse/cli/index.js';
 const runs = Number(process.argv[3] ?? 3);
 const pages = ['/', '/en/', '/trips/chelia-summit/', '/en/trips/chelia-summit/'];
 const dir = mkdtempSync(join(tmpdir(), 'lh-'));
@@ -20,11 +23,12 @@ for (const path of pages) {
   const results = [];
   for (let i = 0; i < runs; i++) {
     const out = join(dir, `r${i}.json`);
+    // No shell, Chrome sandbox kept on.
     execFileSync(
-      process.platform === 'win32' ? 'npx.cmd' : 'npx',
-      ['lighthouse', `${base}${path}`, '--quiet', '--output=json', `--output-path=${out}`,
-        `--only-categories=${cats.join(',')}`, '--chrome-flags=--headless=new --no-sandbox'],
-      { env: { ...process.env, CHROME_PATH: chromePath }, stdio: 'ignore', shell: process.platform === 'win32' },
+      process.execPath,
+      [LH_CLI, `${base}${path}`, '--quiet', '--output=json', `--output-path=${out}`,
+        `--only-categories=${cats.join(',')}`, '--chrome-flags=--headless=new'],
+      { env: { ...process.env, CHROME_PATH: chromePath }, stdio: 'ignore' },
     );
     results.push(JSON.parse(readFileSync(out, 'utf8')));
   }
