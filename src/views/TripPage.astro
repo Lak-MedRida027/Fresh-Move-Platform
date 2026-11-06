@@ -1,0 +1,436 @@
+---
+import { getImage, Image } from 'astro:assets';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Icon from '../components/Icon.astro';
+import TerrainTag from '../components/TerrainTag.astro';
+import InstagramButtons from '../components/InstagramButtons.astro';
+import { getRegion } from '../data/regions';
+import { localizePath, useTranslations, type Locale } from '../i18n';
+import { formatTripDate, type Trip } from '../lib/trips';
+
+interface Props {
+  locale: Locale;
+  trip: Trip;
+}
+const { locale, trip } = Astro.props;
+const t = useTranslations(locale);
+const { data } = trip;
+const title = data.title[locale];
+const region = getRegion(data.region);
+const primary = data.terrain[0] ?? 'mountain';
+
+const HERO_SIZES = '100vw';
+const cover = await getImage({
+  src: data.cover,
+  widths: [640, 960, 1280, 1600],
+  sizes: HERO_SIZES,
+  format: 'webp',
+  quality: 72,
+});
+
+const total = data.gallery.length;
+// Full-size versions for the lightbox are computed at build time.
+const photos = await Promise.all(
+  data.gallery.map(async (img, i) => {
+    const full = await getImage({ src: img, width: 1600, format: 'webp', quality: 78 });
+    return {
+      img,
+      full: full.src,
+      alt: t('trip.photoAlt', { title, n: i + 1, total }),
+    };
+  }),
+);
+---
+
+<BaseLayout
+  locale={locale}
+  title={t('meta.trip.title', { title })}
+  description={data.summary[locale]}
+  ogType="article"
+>
+  <link
+    slot="head"
+    rel="preload"
+    as="image"
+    type="image/webp"
+    href={cover.src}
+    imagesrcset={cover.srcSet.attribute}
+    imagesizes={HERO_SIZES}
+    fetchpriority="high"
+  />
+
+  <article class="trip" data-terrain={primary}>
+    <header class="trip-hero">
+      <img
+        class="trip-hero__img"
+        src={cover.src}
+        srcset={cover.srcSet.attribute}
+        sizes={HERO_SIZES}
+        width={data.cover.width}
+        height={data.cover.height}
+        alt={t('trip.coverAlt', { title })}
+        fetchpriority="high"
+        loading="eager"
+        decoding="async"
+      />
+      <div class="trip-hero__scrim" aria-hidden="true"></div>
+      <div class="container trip-hero__content">
+        <a class="trip-hero__back" href={localizePath('/trips/', locale)}>
+          <Icon name="arrow" size={18} class="trip-hero__back-icon" />
+          {t('trip.back')}
+        </a>
+        <h1 class="trip-hero__title">
+          {locale === 'en' ? <span class="display">{title}</span> : <span class="display-ar">{title}</span>}
+        </h1>
+        {
+          locale === 'ar' && (
+            <p class="trip-hero__latin display" lang="en" dir="ltr">
+              {data.title.en}
+            </p>
+          )
+        }
+      </div>
+    </header>
+
+    <div class="container trip__body">
+      <dl class="trip__facts">
+        <div>
+          <dt>{t('trip.region')}</dt>
+          <dd>{region.name[locale]}</dd>
+        </div>
+        <div>
+          <dt>{t('trip.date')}</dt>
+          <dd>{formatTripDate(data.date, locale)}</dd>
+        </div>
+        <div>
+          <dt>{t('trip.terrain')}</dt>
+          <dd class="trip__tags">
+            {data.terrain.map((terrain) => <TerrainTag terrain={terrain} locale={locale} />)}
+          </dd>
+        </div>
+      </dl>
+
+      <p class="trip__story">{data.summary[locale]}</p>
+      {
+        data.instagramPostUrl && (
+          <p>
+            <a href={data.instagramPostUrl} target="_blank" rel="noopener" data-instagram-link>
+              {t('trip.instagramPost')}
+              <span class="visually-hidden"> {t('a11y.opensInstagram')}</span>
+            </a>
+          </p>
+        )
+      }
+
+      {
+        total > 0 && (
+          <section class="gallery" aria-labelledby="gallery-title">
+            <h2 id="gallery-title" class="gallery__title">
+              {t('trip.gallery')}
+            </h2>
+            <ul class="gallery__grid" role="list" data-gallery>
+              {photos.map((photo, i) => (
+                <li>
+                  <button
+                    type="button"
+                    class="gallery__item"
+                    data-gallery-item
+                    data-index={i}
+                    data-full={photo.full}
+                    data-alt={photo.alt}
+                    aria-label={t('trip.openPhoto', { n: i + 1 })}
+                    aria-haspopup="dialog"
+                  >
+                    <Image
+                      src={photo.img}
+                      alt={photo.alt}
+                      widths={[320, 480, 720]}
+                      sizes="(min-width: 64rem) 25vw, 50vw"
+                      loading="lazy"
+                      class="gallery__img"
+                    />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )
+      }
+
+      <aside class="trip-cta" aria-labelledby="trip-cta-title">
+        <h2 id="trip-cta-title" class="trip-cta__title">{t('trip.cta.title')}</h2>
+        <p class="trip-cta__text">{t('trip.cta.text')}</p>
+        <InstagramButtons locale={locale} followLabel={t('how.ctaFollow')} dmLabel={t('how.ctaDm')} />
+      </aside>
+    </div>
+  </article>
+
+  {
+    total > 0 && (
+      <dialog
+        class="lightbox"
+        aria-label={t('lightbox.label')}
+        data-lightbox
+        data-counter-template={t('lightbox.counter', { n: '{n}', total: '{total}' })}
+      >
+        <div class="lightbox__frame">
+          <img class="lightbox__img" alt="" data-lightbox-img />
+          <p class="lightbox__counter" aria-live="polite" data-lightbox-counter />
+          <button type="button" class="lightbox__btn lightbox__close" data-lightbox-close aria-label={t('lightbox.close')}>
+            <Icon name="close" size={24} />
+          </button>
+          <button type="button" class="lightbox__btn lightbox__prev" data-lightbox-prev aria-label={t('lightbox.prev')}>
+            <Icon name="chevron" size={26} class="lightbox__prev-icon" />
+          </button>
+          <button type="button" class="lightbox__btn lightbox__next" data-lightbox-next aria-label={t('lightbox.next')}>
+            <Icon name="chevron" size={26} />
+          </button>
+        </div>
+      </dialog>
+    )
+  }
+
+  <script>
+    import '../scripts/lightbox.ts';
+  </script>
+</BaseLayout>
+
+<style>
+  .trip-hero {
+    position: relative;
+    display: grid;
+    align-items: end;
+    min-block-size: min(70svh, 40rem);
+    color: var(--on-photo);
+    isolation: isolate;
+    overflow: hidden;
+    background: var(--burnt-earth);
+  }
+  .trip-hero__img {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+    z-index: -2;
+  }
+  .trip-hero__scrim {
+    position: absolute;
+    inset: 0;
+    background: var(--photo-scrim);
+    z-index: -1;
+  }
+  .trip-hero__content {
+    display: grid;
+    gap: 0.75rem;
+    justify-items: start;
+    padding-block: 6rem 2.5rem;
+  }
+  .trip-hero__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-block-size: var(--tap);
+    color: var(--on-photo);
+    font-weight: 600;
+  }
+  /* The back arrow points "backwards": left in LTR, right in RTL. */
+  .trip-hero__back :global(.trip-hero__back-icon) {
+    transform: scaleX(-1);
+  }
+  :global([dir='rtl']) .trip-hero__back :global(.trip-hero__back-icon) {
+    transform: none;
+  }
+  .trip-hero__title {
+    font-size: clamp(2.4rem, 10vw, 4.6rem);
+    line-height: 1.1;
+    text-shadow: 0 2px 24px rgba(0, 0, 0, 0.5);
+  }
+  .trip-hero__latin {
+    font-size: 1rem;
+    letter-spacing: 0.2em;
+    opacity: 0.9;
+  }
+
+  .trip__body {
+    display: grid;
+    gap: 2rem;
+    padding-block: 2.5rem 0;
+  }
+  .trip__facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    gap: 0.75rem;
+    margin: 0;
+  }
+  .trip__facts > div {
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--border);
+    border-block-start: 3px solid var(--terrain);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .trip__facts dt {
+    color: var(--fg-muted);
+    font-size: 0.85rem;
+  }
+  .trip__facts dd {
+    margin: 0.25rem 0 0;
+    font-weight: 600;
+  }
+  .trip__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .trip__story {
+    max-inline-size: 44rem;
+    font-size: 1.2rem;
+  }
+
+  .gallery__title {
+    margin-block-end: 1rem;
+    font-size: 1.6rem;
+  }
+  .gallery__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  @media (min-width: 48rem) {
+    .gallery__grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+  }
+  .gallery__item {
+    display: block;
+    inline-size: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: var(--burnt-earth);
+    cursor: zoom-in;
+    aspect-ratio: 3 / 2;
+  }
+  .gallery__item :global(.gallery__img) {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+    transition: transform 0.35s var(--ease-out);
+  }
+  .gallery__item:hover :global(.gallery__img) {
+    transform: scale(1.04);
+  }
+
+  .trip-cta {
+    display: grid;
+    gap: 0.75rem;
+    justify-items: start;
+    padding: 2rem 1.5rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background:
+      radial-gradient(ellipse at 100% 0%, color-mix(in srgb, var(--terrain) 22%, transparent), transparent 65%),
+      var(--surface);
+  }
+  .trip-cta__title {
+    font-size: clamp(1.7rem, 6vw, 2.4rem);
+  }
+  .trip-cta__text {
+    color: var(--fg-muted);
+    margin-block-end: 0.5rem;
+  }
+
+  /* ---------- Lightbox ---------- */
+  .lightbox {
+    inline-size: 100vw;
+    block-size: 100dvh;
+    max-inline-size: none;
+    max-block-size: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: rgba(8, 8, 8, 0.96);
+    color: var(--sandstone-white);
+  }
+  .lightbox::backdrop {
+    background: rgba(0, 0, 0, 0.85);
+  }
+  .lightbox__frame {
+    position: relative;
+    display: grid;
+    place-items: center;
+    inline-size: 100%;
+    block-size: 100%;
+    padding: 4rem 0.5rem;
+    touch-action: pan-y pinch-zoom;
+  }
+  .lightbox__img {
+    max-inline-size: 100%;
+    max-block-size: 100%;
+    object-fit: contain;
+    border-radius: var(--radius-sm);
+    user-select: none;
+  }
+  .lightbox__counter {
+    position: absolute;
+    inset-block-start: 1.1rem;
+    inset-inline-start: 1.25rem;
+    font-family: var(--font-ui);
+    font-size: 0.95rem;
+    color: var(--sandstone-white);
+  }
+  .lightbox__btn {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    inline-size: 48px;
+    block-size: 48px;
+    padding: 0;
+    border: 1px solid rgba(232, 229, 224, 0.4);
+    border-radius: 50%;
+    background: rgba(15, 15, 15, 0.6);
+    color: var(--sandstone-white);
+    cursor: pointer;
+  }
+  .lightbox__btn:hover {
+    border-color: var(--sandstone-white);
+  }
+  .lightbox__btn:focus-visible {
+    outline: 3px solid var(--sandstone-white);
+  }
+  .lightbox__close {
+    inset-block-start: 0.6rem;
+    inset-inline-end: 0.75rem;
+  }
+  .lightbox__prev,
+  .lightbox__next {
+    inset-block-end: 1rem;
+  }
+  @media (min-width: 48rem) {
+    .lightbox__prev,
+    .lightbox__next {
+      inset-block-end: auto;
+      inset-block-start: 50%;
+      translate: 0 -50%;
+    }
+  }
+  .lightbox__prev {
+    inset-inline-start: 0.75rem;
+  }
+  .lightbox__next {
+    inset-inline-end: 0.75rem;
+  }
+  /* chevron points forward; "previous" mirrors it (and flip-rtl handles RTL) */
+  .lightbox__prev :global(.lightbox__prev-icon) {
+    transform: scaleX(-1);
+  }
+  :global([dir='rtl']) .lightbox__prev :global(.lightbox__prev-icon) {
+    transform: none;
+  }
+</style>

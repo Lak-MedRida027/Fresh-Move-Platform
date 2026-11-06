@@ -1,0 +1,34 @@
+---
+import type { Terrain } from '../data/regions';
+import { useTranslations, type Locale } from '../i18n';
+
+interface Props {
+  terrain: Terrain;
+  locale: Locale;
+}
+const { terrain, locale } = Astro.props;
+const t = useTranslations(locale);
+---
+
+<span class="terrain-tag" data-terrain={terrain}>{t(`terrain.${terrain}`)}</span>
+
+<style>
+  .terrain-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.65rem;
+    border-radius: var(--radius-pill);
+    background: var(--terrain);
+    color: var(--on-terrain);
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+  }
+  :global(html[lang='en']) .terrain-tag {
+    font-family: var(--font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.7rem;
+  }
+</style>

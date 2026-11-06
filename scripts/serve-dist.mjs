@@ -69,8 +69,8 @@ createServer(async (req, res) => {
     res.end(body);
     return;
   }
-  const notFound = url.pathname.startsWith('/en/') ? 'en/404.html' : '404.html';
-  const page = await readFile(join(root, notFound)).catch(() => readFile(join(root, '404.html')).catch(() => null));
+  // Like Vercel: every missing URL gets the root 404.html (it is bilingual).
+  const page = await readFile(join(root, '404.html')).catch(() => null);
   res.writeHead(404, { ...headers, 'Content-Type': 'text/html; charset=utf-8' });
   res.end(page ?? 'Not found');
 }).listen(port, () => {

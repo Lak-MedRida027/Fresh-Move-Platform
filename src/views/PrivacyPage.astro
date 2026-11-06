@@ -1,0 +1,71 @@
+---
+// TODO(owner): review this privacy notice. It is plain-language guidance, not legal advice.
+import BaseLayout from '../layouts/BaseLayout.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import { INSTAGRAM } from '../config/site';
+import { useTranslations, type Locale, type TKey } from '../i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+const blocks: { title: TKey; text: TKey }[] = [
+  { title: 'privacy.what.title', text: 'privacy.what.text' },
+  { title: 'privacy.why.title', text: 'privacy.why.text' },
+  { title: 'privacy.who.title', text: 'privacy.who.text' },
+  { title: 'privacy.keep.title', text: 'privacy.keep.text' },
+  { title: 'privacy.delete.title', text: 'privacy.delete.text' },
+];
+---
+
+<BaseLayout locale={locale} title={t('meta.privacy.title')} description={t('meta.privacy.description')}>
+  <section class="section">
+    <div class="container privacy">
+      <SectionHeading level="h1" title={t('privacy.title')} intro={t('privacy.intro')} />
+      {
+        blocks.map((b) => (
+          <section class="privacy__block">
+            <h2>{t(b.title)}</h2>
+            <p>{t(b.text)}</p>
+          </section>
+        ))
+      }
+      <p class="privacy__law">{t('privacy.law')}</p>
+      <p>
+        <a class="btn btn-ghost" href={INSTAGRAM.dm} target="_blank" rel="noopener" data-instagram-link>
+          {t('footer.dm')}
+          <span class="visually-hidden">{t('a11y.opensInstagram')}</span>
+        </a>
+      </p>
+      <p class="muted privacy__small">{t('privacy.disclaimer')}</p>
+      <p class="muted privacy__small">{t('privacy.updated')}</p>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .privacy {
+    max-inline-size: 46rem;
+    display: grid;
+    gap: 1.5rem;
+  }
+  .privacy__block {
+    display: grid;
+    gap: 0.4rem;
+    padding-block-end: 1.25rem;
+    border-block-end: 1px solid var(--border);
+  }
+  .privacy__block h2 {
+    font-size: 1.35rem;
+  }
+  .privacy__law {
+    padding: 1.1rem 1.2rem;
+    border-inline-start: 3px solid var(--accent-sand);
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+  }
+  .privacy__small {
+    font-size: 0.9rem;
+  }
+</style>

@@ -265,3 +265,13 @@ html[lang^='ar'] .eyebrow {
     transform: none;
   }
 }
+
+/* ---------- Shared grids ---------- */
+.trip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

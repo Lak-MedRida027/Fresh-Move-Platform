@@ -1,17 +1,684 @@
 ---
+import { getImage } from 'astro:assets';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { useTranslations, type Locale } from '../i18n';
+import Logo from '../components/Logo.astro';
+import Icon from '../components/Icon.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import TripCard from '../components/TripCard.astro';
+import JoinSection from '../components/JoinSection.astro';
+import InstagramButtons from '../components/InstagramButtons.astro';
+import heroImage from '../assets/hero/hero.jpg';
+import { REGIONS } from '../data/regions';
+import { MIN_AGE, SITE, STATS } from '../config/site';
+import { localizePath, useTranslations, type Locale, type TKey } from '../i18n';
+import { getFeaturedTrips } from '../lib/trips';
 
 interface Props {
   locale: Locale;
 }
 const { locale } = Astro.props;
 const t = useTranslations(locale);
+const featured = await getFeaturedTrips(6);
+const tripsHref = localizePath('/trips/', locale);
+
+// Hero: one responsive WebP set, preloaded with the exact same srcset.
+const HERO_SIZES = '100vw';
+const hero = await getImage({
+  src: heroImage,
+  widths: [640, 960, 1280, 1920],
+  sizes: HERO_SIZES,
+  format: 'webp',
+  quality: 72,
+});
+
+const pillars: { key: 'travel' | 'nature' | 'history' | 'adventure'; icon: 'route' | 'mountain' | 'columns' | 'compass' }[] = [
+  { key: 'travel', icon: 'route' },
+  { key: 'nature', icon: 'mountain' },
+  { key: 'history', icon: 'columns' },
+  { key: 'adventure', icon: 'compass' },
+];
+
+const traits: { key: string; icon: 'flag' | 'users' | 'heart' | 'spark' | 'check' }[] = [
+  { key: 'adventurous', icon: 'flag' },
+  { key: 'community', icon: 'users' },
+  { key: 'algerian', icon: 'heart' },
+  { key: 'motivational', icon: 'spark' },
+  { key: 'accessible', icon: 'check' },
+];
+
+const numberFmt = new Intl.NumberFormat(locale === 'ar' ? 'ar-DZ' : 'en');
+const stats: { value: number; label: TKey }[] = [
+  { value: STATS.followers, label: 'stats.followers' },
+  { value: STATS.posts, label: 'stats.posts' },
+  { value: STATS.destinations, label: 'stats.destinations' },
+  { value: STATS.regions, label: 'stats.regions' },
+];
+
+const steps = [1, 2, 3, 4] as const;
+const faqs = [1, 2, 3, 4, 5, 6] as const;
 ---
 
 <BaseLayout locale={locale} title={t('meta.home.title')} description={t('meta.home.description')}>
-  <section class="section container">
-    <h1>{t('site.tagline')}</h1>
-    <p class="muted">{t('footer.pillars')}</p>
+  <link
+    slot="head"
+    rel="preload"
+    as="image"
+    type="image/webp"
+    href={hero.src}
+    imagesrcset={hero.srcSet.attribute}
+    imagesizes={HERO_SIZES}
+    fetchpriority="high"
+  />
+
+  <!-- 1. Hero -->
+  <section class="hero" aria-labelledby="hero-title">
+    <img
+      class="hero__img"
+      src={hero.src}
+      srcset={hero.srcSet.attribute}
+      sizes={HERO_SIZES}
+      width={heroImage.width}
+      height={heroImage.height}
+      alt={t('hero.imageAlt')}
+      fetchpriority="high"
+      loading="eager"
+      decoding="async"
+    />
+    <div class="hero__scrim" aria-hidden="true"></div>
+    <div class="container hero__content">
+      <Logo size={88} alt={SITE.name} eager class="hero__logo" />
+      <p class="hero__brand display" lang="en" dir="ltr">Fresh Move</p>
+      <h1 id="hero-title" class="hero__title" lang="ar-DZ" dir="rtl">{t('site.tagline')}</h1>
+      <p class="hero__intro">{t('hero.intro')}</p>
+      <div class="hero__actions">
+        <a class="btn btn-primary" href="#join">{t('hero.ctaJoin')}</a>
+        <a class="btn btn-on-photo" href={tripsHref}>
+          {t('hero.ctaTrips')}
+          <Icon name="arrow" size={18} />
+        </a>
+      </div>
+    </div>
+    <a class="hero__scroll" href="#about">
+      <span class="visually-hidden">{t('hero.scroll')}</span>
+      <Icon name="chevron-down" size={28} />
+    </a>
+  </section>
+
+  <!-- 2. Who we are -->
+  <section class="section about" id="about" aria-labelledby="about-title">
+    <div class="container about__grid">
+      <div class="reveal">
+        <SectionHeading eyebrow={t('about.eyebrow')} title={t('about.title')} id="about-title" />
+        <div class="about__text">
+          <p>{t('about.p1')}</p>
+          <p class="about__quote">{t('about.p2')}</p>
+        </div>
+      </div>
+      <ul class="pillars reveal" role="list" aria-label={t('about.pillarsLabel')}>
+        {
+          pillars.map((p) => (
+            <li class="pillar">
+              <span class="pillar__icon">
+                <Icon name={p.icon} size={28} />
+              </span>
+              <h3 class="pillar__title">{t(`pillar.${p.key}.title`)}</h3>
+              <p class="muted">{t(`pillar.${p.key}.text`)}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <!-- 3. Personality -->
+  <section class="section traits" aria-labelledby="traits-title">
+    <div class="container">
+      <SectionHeading eyebrow={t('traits.eyebrow')} title={t('traits.title')} id="traits-title" />
+      <ul class="traits__list" role="list">
+        {
+          traits.map((trait, i) => (
+            <li class="trait reveal">
+              <span class="trait__index latin-num" aria-hidden="true">
+                0{i + 1}
+              </span>
+              <Icon name={trait.icon} size={26} class="trait__icon" />
+              <h3 class="trait__title">{t(`trait.${trait.key}.title` as TKey)}</h3>
+              <p class="muted">{t(`trait.${trait.key}.text` as TKey)}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <!-- 4. Numbers -->
+  <section class="section stats" aria-labelledby="stats-title">
+    <div class="container">
+      <SectionHeading eyebrow={t('stats.eyebrow')} title={t('stats.title')} id="stats-title" align="center" />
+      <dl class="stats__grid">
+        {
+          stats.map((s) => (
+            <div class="stat reveal">
+              <dt class="stat__label">{t(s.label)}</dt>
+              <dd class="stat__value latin-num">{numberFmt.format(s.value)}</dd>
+            </div>
+          ))
+        }
+      </dl>
+    </div>
+  </section>
+
+  <!-- 5. Where we've been -->
+  <section class="section regions" id="regions" aria-labelledby="regions-title">
+    <div class="container">
+      <SectionHeading
+        eyebrow={t('regions.eyebrow')}
+        title={t('regions.title')}
+        intro={t('regions.intro')}
+        id="regions-title"
+      />
+      <ul class="regions__grid" role="list">
+        {
+          REGIONS.map((region) => (
+            <li class="region reveal" data-terrain={region.accent}>
+              <div class="region__head">
+                <Icon name="pin" size={22} class="region__pin" />
+                <h3 class="region__name">{region.name[locale]}</h3>
+              </div>
+              {locale === 'ar' && (
+                <p class="region__latin display" lang="en" dir="ltr">
+                  {region.name.en}
+                </p>
+              )}
+              <ul class="region__places" role="list">
+                {region.destinations.map((d) => (
+                  <li>{d[locale]}</li>
+                ))}
+              </ul>
+              <a class="region__link" href={`${tripsHref}?region=${region.id}`}>
+                {t('regions.seeTrips', { region: region.name[locale] })}
+                <Icon name="arrow" size={16} />
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <!-- 6. Featured past trips -->
+  <section class="section featured" aria-labelledby="featured-title">
+    <div class="container">
+      <SectionHeading eyebrow={t('featured.eyebrow')} title={t('featured.title')} id="featured-title" />
+      <ul class="trip-grid" role="list">
+        {
+          featured.map((trip) => (
+            <li class="reveal">
+              <TripCard trip={trip} locale={locale} />
+            </li>
+          ))
+        }
+      </ul>
+      <p class="featured__more">
+        <a class="btn btn-ghost" href={tripsHref}>
+          {t('featured.all')}
+          <Icon name="arrow" size={18} />
+        </a>
+      </p>
+    </div>
+  </section>
+
+  <!-- 7. How it works -->
+  <section class="section how" id="how" aria-labelledby="how-title">
+    <div class="container">
+      <SectionHeading eyebrow={t('how.eyebrow')} title={t('how.title')} id="how-title" />
+      <ol class="how__steps" role="list">
+        {
+          steps.map((n) => (
+            <li class="step reveal">
+              <span class="step__num latin-num" aria-hidden="true">
+                {n}
+              </span>
+              <h3 class="step__title">{t(`how.step${n}.title`)}</h3>
+              <p class="muted">{t(`how.step${n}.text`)}</p>
+            </li>
+          ))
+        }
+      </ol>
+      <div class="how__note reveal">
+        <Icon name="instagram" size={28} class="how__note-icon" />
+        <p>{t('how.note')}</p>
+        <InstagramButtons locale={locale} followLabel={t('how.ctaFollow')} dmLabel={t('how.ctaDm')} />
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. Join -->
+  <JoinSection locale={locale} />
+
+  <!-- 9. FAQ -->
+  <section class="section faq" id="faq" aria-labelledby="faq-title">
+    <div class="container faq__inner">
+      <SectionHeading eyebrow={t('faq.eyebrow')} title={t('faq.title')} id="faq-title" />
+      {/* TODO(owner): confirm every FAQ answer (age limit, experience level, free membership, what to bring). */}
+      <div class="faq__list">
+        {
+          faqs.map((n) => (
+            <details class="faq__item">
+              <summary>
+                <span>{t(`faq.q${n}`)}</span>
+                <Icon name="chevron-down" size={20} class="faq__chev" />
+              </summary>
+              <p class="faq__answer">{t(`faq.a${n}`, { minAge: MIN_AGE })}</p>
+            </details>
+          ))
+        }
+      </div>
+    </div>
   </section>
 </BaseLayout>
+
+<style>
+  /* ---------- Hero ---------- */
+  .hero {
+    position: relative;
+    display: grid;
+    align-items: end;
+    min-block-size: min(92svh, 56rem);
+    color: var(--on-photo);
+    isolation: isolate;
+    overflow: hidden;
+    background: var(--burnt-earth);
+  }
+  .hero__img {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+    z-index: -2;
+  }
+  .hero__scrim {
+    position: absolute;
+    inset: 0;
+    background: var(--photo-scrim);
+    z-index: -1;
+  }
+  .hero__content {
+    display: grid;
+    justify-items: start;
+    gap: 1rem;
+    padding-block: 7rem 5.5rem;
+  }
+  .hero :global(.hero__logo) {
+    margin-block-end: 0.5rem; /* with the 1rem gap: ≥22px (25% of 88px) clear space */
+  }
+  .hero__brand {
+    font-size: 1rem;
+    letter-spacing: 0.32em;
+    color: var(--on-photo);
+    opacity: 0.9;
+  }
+  .hero__title {
+    font-family: var(--font-arabic), var(--font-display-latin);
+    font-weight: 700;
+    font-size: clamp(2.3rem, 10vw, 5rem);
+    line-height: 1.25;
+    text-transform: none;
+    letter-spacing: 0;
+    inline-size: fit-content;
+    max-inline-size: 16ch;
+    text-shadow: 0 2px 24px rgba(0, 0, 0, 0.45);
+  }
+  .hero__intro {
+    max-inline-size: 36rem;
+    font-size: clamp(1.05rem, 3.6vw, 1.25rem);
+    color: var(--overlay-text);
+  }
+  .hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-block-start: 0.75rem;
+  }
+  .hero__scroll {
+    position: absolute;
+    inset-block-end: 1.25rem;
+    inset-inline-start: 50%;
+    translate: -50% 0;
+    display: grid;
+    place-items: center;
+    inline-size: var(--tap);
+    block-size: var(--tap);
+    color: var(--on-photo);
+    border-radius: 50%;
+  }
+  [dir='rtl'] .hero__scroll {
+    translate: 50% 0;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .hero__scroll :global(svg) {
+      animation: nudge 2.4s var(--ease-out) infinite;
+    }
+  }
+  @keyframes nudge {
+    0%,
+    100% {
+      transform: translateY(0);
+      opacity: 0.6;
+    }
+    50% {
+      transform: translateY(6px);
+      opacity: 1;
+    }
+  }
+  @media (max-width: 30rem) {
+    .hero__actions {
+      inline-size: 100%;
+    }
+    .hero__actions .btn {
+      flex: 1 1 100%;
+    }
+  }
+
+  /* ---------- About ---------- */
+  .about__grid {
+    display: grid;
+    gap: 2.5rem;
+  }
+  @media (min-width: 60rem) {
+    .about__grid {
+      grid-template-columns: 1.1fr 1fr;
+      align-items: center;
+      gap: 4rem;
+    }
+  }
+  .about__text {
+    display: grid;
+    gap: 1.25rem;
+    font-size: 1.1rem;
+  }
+  .about__quote {
+    padding-inline-start: 1rem;
+    border-inline-start: 3px solid var(--accent-sand);
+    font-weight: 600;
+  }
+  .pillars {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .pillar {
+    display: grid;
+    gap: 0.4rem;
+    align-content: start;
+    padding: 1.25rem 1.1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .pillar__icon {
+    display: inline-grid;
+    place-items: center;
+    inline-size: 3rem;
+    block-size: 3rem;
+    margin-block-end: 0.4rem;
+    border-radius: 50%;
+    background: var(--surface-raised);
+    color: var(--accent-sand);
+  }
+  .pillar__title {
+    font-size: 1.35rem;
+  }
+  .pillar p {
+    font-size: 0.92rem;
+  }
+
+  /* ---------- Traits ---------- */
+  .traits {
+    background: var(--surface);
+    border-block: 1px solid var(--border);
+  }
+  .traits__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .trait {
+    position: relative;
+    display: grid;
+    gap: 0.5rem;
+    align-content: start;
+    padding: 1.4rem 1.2rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .trait__index {
+    position: absolute;
+    inset-block-start: 0.6rem;
+    inset-inline-end: 0.9rem;
+    font-family: var(--font-display-latin);
+    font-size: 2.4rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--border);
+  }
+  .trait :global(.trait__icon) {
+    color: var(--link);
+  }
+  .trait__title {
+    font-size: 1.3rem;
+  }
+
+  /* ---------- Stats ---------- */
+  .stats__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin: 0;
+  }
+  @media (min-width: 48rem) {
+    .stats__grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  .stat {
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 1.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    text-align: center;
+  }
+  .stat__value {
+    margin: 0;
+    font-family: var(--font-display-latin);
+    font-weight: 700;
+    font-size: clamp(2.2rem, 9vw, 3.6rem);
+    line-height: 1;
+    color: var(--accent-sand);
+    direction: ltr;
+  }
+  .stat__label {
+    color: var(--fg-muted);
+    font-size: 0.95rem;
+  }
+
+  /* ---------- Regions ---------- */
+  .regions__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .region {
+    display: grid;
+    gap: 0.75rem;
+    align-content: start;
+    padding: 1.4rem 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-block-start: 4px solid var(--terrain);
+    border-radius: var(--radius);
+  }
+  .region__head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .region :global(.region__pin) {
+    color: var(--terrain);
+    flex: none;
+  }
+  .region__name {
+    font-size: 1.3rem;
+  }
+  .region__latin {
+    margin-block-start: -0.5rem;
+    font-size: 0.78rem;
+    color: var(--fg-muted);
+    font-weight: 600;
+    text-align: end;
+  }
+  .region__places {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .region__places li {
+    padding: 0.2rem 0.7rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    font-size: 0.88rem;
+  }
+  .region__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-block-size: var(--tap);
+    font-weight: 600;
+  }
+
+  /* ---------- Featured ---------- */
+  .featured {
+    background: var(--surface);
+    border-block: 1px solid var(--border);
+  }
+  .featured :global(.trip-card) {
+    background: var(--bg);
+  }
+  .featured__more {
+    margin-block-start: 2rem;
+    text-align: center;
+  }
+
+  /* ---------- How it works ---------- */
+  .how__steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: none;
+  }
+  .step {
+    display: grid;
+    gap: 0.5rem;
+    align-content: start;
+    padding: 1.4rem 1.2rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .step__num {
+    display: inline-grid;
+    place-items: center;
+    inline-size: 2.6rem;
+    block-size: 2.6rem;
+    border-radius: 50%;
+    background: var(--btn-bg);
+    color: var(--btn-fg);
+    font-family: var(--font-display-latin);
+    font-weight: 700;
+    font-size: 1.2rem;
+  }
+  .step__title {
+    font-size: 1.25rem;
+  }
+  .how__note {
+    display: grid;
+    gap: 1rem;
+    justify-items: start;
+    margin-block-start: 1.5rem;
+    padding: 1.5rem 1.25rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--accent-sand);
+    background: var(--surface-raised);
+    font-weight: 600;
+    font-size: 1.05rem;
+  }
+  .how__note :global(.how__note-icon) {
+    color: var(--accent-sand);
+  }
+
+  /* ---------- FAQ ---------- */
+  .faq__inner {
+    max-inline-size: 52rem;
+  }
+  .faq__list {
+    display: grid;
+    gap: 0.6rem;
+  }
+  .faq__item {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .faq__item summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-block-size: 3.5rem;
+    padding: 0.75rem 1.2rem;
+    font-weight: 600;
+    font-size: 1.05rem;
+    cursor: pointer;
+    list-style: none;
+  }
+  .faq__item summary::-webkit-details-marker {
+    display: none;
+  }
+  .faq__item :global(.faq__chev) {
+    flex: none;
+    transition: transform 0.2s var(--ease-out);
+  }
+  .faq__item[open] :global(.faq__chev) {
+    transform: rotate(180deg);
+  }
+  .faq__answer {
+    padding: 0 1.2rem 1.2rem;
+    color: var(--fg-muted);
+  }
+
+  .latin-num {
+    font-variant-numeric: lining-nums;
+  }
+</style>

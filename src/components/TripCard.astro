@@ -1,0 +1,136 @@
+---
+import { Image } from 'astro:assets';
+import TerrainTag from './TerrainTag.astro';
+import { getRegion } from '../data/regions';
+import { localizePath, type Locale } from '../i18n';
+import { formatTripDate, type Trip } from '../lib/trips';
+
+interface Props {
+  trip: Trip;
+  locale: Locale;
+  headingLevel?: 'h2' | 'h3';
+}
+const { trip, locale, headingLevel = 'h3' } = Astro.props;
+const { data } = trip;
+const title = data.title[locale];
+const href = localizePath(`/trips/${data.slug}/`, locale);
+const Heading = headingLevel;
+const primary = data.terrain[0] ?? 'mountain';
+---
+
+<article class="trip-card" data-terrain={primary}>
+  <div class="trip-card__media">
+    <Image
+      src={data.cover}
+      alt=""
+      widths={[360, 560, 800]}
+      sizes="(min-width: 64rem) 33vw, (min-width: 40rem) 50vw, 100vw"
+      class="trip-card__img"
+      loading="lazy"
+    />
+  </div>
+  <div class="trip-card__body">
+    <ul class="trip-card__tags" role="list">
+      {data.terrain.map((terrain) => <li><TerrainTag terrain={terrain} locale={locale} /></li>)}
+    </ul>
+    <Heading class="trip-card__title">
+      <a href={href} class="trip-card__link">
+        {locale === 'en' ? <span class="display">{title}</span> : <span class="display-ar">{title}</span>}
+      </a>
+    </Heading>
+    {locale === 'ar' && <p class="trip-card__latin display" lang="en" dir="ltr">{data.title.en}</p>}
+    <p class="trip-card__meta">
+      <span>{getRegion(data.region).name[locale]}</span>
+      <span aria-hidden="true">·</span>
+      <span class="trip-card__date">{formatTripDate(data.date, locale)}</span>
+    </p>
+    <p class="trip-card__summary">{data.summary[locale]}</p>
+  </div>
+</article>
+
+<style>
+  .trip-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    block-size: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition:
+      transform 0.25s var(--ease-out),
+      border-color 0.25s var(--ease-out);
+  }
+  .trip-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--terrain);
+  }
+  .trip-card:focus-within {
+    border-color: var(--focus);
+  }
+  .trip-card__media {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    background: var(--burnt-earth);
+  }
+  .trip-card__media::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0;
+    block-size: 4px;
+    background: var(--terrain);
+  }
+  .trip-card__img {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+  }
+  .trip-card__body {
+    display: grid;
+    gap: 0.5rem;
+    padding: 1.1rem 1.2rem 1.4rem;
+    align-content: start;
+  }
+  .trip-card__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .trip-card__title {
+    font-size: 1.45rem;
+    line-height: 1.25;
+  }
+  .trip-card__link {
+    color: var(--fg);
+    text-decoration: none;
+  }
+  /* Whole card is clickable; the real link stays the heading for screen readers. */
+  .trip-card__link::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+  .trip-card__link:focus-visible {
+    outline: none;
+  }
+  .trip-card__latin {
+    font-size: 0.8rem;
+    color: var(--fg-muted);
+    font-weight: 600;
+    text-align: end;
+  }
+  .trip-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    color: var(--fg-muted);
+    font-size: 0.9rem;
+  }
+  .trip-card__summary {
+    font-size: 0.95rem;
+  }
+</style>

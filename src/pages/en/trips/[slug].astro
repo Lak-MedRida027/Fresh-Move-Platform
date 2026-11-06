@@ -1,0 +1,14 @@
+---
+import type { GetStaticPaths } from 'astro';
+import TripPage from '../../../views/TripPage.astro';
+import { getTrips } from '../../../lib/trips';
+
+export const getStaticPaths = (async () => {
+  const trips = await getTrips();
+  return trips.map((trip) => ({ params: { slug: trip.data.slug }, props: { trip } }));
+}) satisfies GetStaticPaths;
+
+const { trip } = Astro.props;
+---
+
+<TripPage locale="en" trip={trip} />

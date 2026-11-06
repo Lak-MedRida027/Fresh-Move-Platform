@@ -1,0 +1,50 @@
+---
+/** The only "join a trip" path: Instagram profile + DM. */
+import Icon from './Icon.astro';
+import { INSTAGRAM } from '../config/site';
+import { useTranslations, type Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+  followLabel: string;
+  dmLabel: string;
+  onPhoto?: boolean;
+}
+const { locale, followLabel, dmLabel, onPhoto = false } = Astro.props;
+const t = useTranslations(locale);
+---
+
+<div class="ig-buttons">
+  <a class="btn btn-primary" href={INSTAGRAM.dm} target="_blank" rel="noopener" data-instagram-link>
+    <Icon name="message" size={20} />
+    <span>{dmLabel}</span>
+    <span class="visually-hidden">{t('a11y.opensInstagram')}</span>
+  </a>
+  <a
+    class:list={['btn', onPhoto ? 'btn-on-photo' : 'btn-ghost']}
+    href={INSTAGRAM.profile}
+    target="_blank"
+    rel="noopener"
+    data-instagram-link
+  >
+    <Icon name="instagram" size={20} />
+    <span>{followLabel}</span>
+    <span class="visually-hidden">{t('a11y.opensInstagram')}</span>
+  </a>
+</div>
+
+<style>
+  .ig-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  @media (max-width: 30rem) {
+    .ig-buttons {
+      inline-size: 100%;
+    }
+    .ig-buttons .btn {
+      flex: 1 1 100%;
+    }
+  }
+</style>

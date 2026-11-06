@@ -1,0 +1,15 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import JoinSection from '../components/JoinSection.astro';
+import { useTranslations, type Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+---
+
+<BaseLayout locale={locale} title={t('meta.join.title')} description={t('meta.join.description')}>
+  <JoinSection locale={locale} asPage />
+</BaseLayout>

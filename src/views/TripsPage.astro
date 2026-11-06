@@ -1,0 +1,196 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import TripCard from '../components/TripCard.astro';
+import Icon from '../components/Icon.astro';
+import { FILTER_TERRAINS, REGIONS } from '../data/regions';
+import { useTranslations, type Locale } from '../i18n';
+import { getTrips } from '../lib/trips';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+const trips = await getTrips();
+const countTemplate = t('filter.count', { count: '{count}' });
+---
+
+<BaseLayout locale={locale} title={t('meta.trips.title')} description={t('meta.trips.description')}>
+  <section class="section trips">
+    <div class="container">
+      <SectionHeading level="h1" title={t('trips.title')} intro={t('trips.intro')} id="trips-title" />
+
+      <form class="filters" aria-label={t('filter.label')} data-trip-filters data-count-template={countTemplate}>
+        <fieldset class="filters__group">
+          <legend class="filters__legend">{t('filter.terrain')}</legend>
+          <div class="chips">
+            <label class="chip">
+              <input type="radio" name="terrain" value="" checked />
+              <span>{t('filter.all')}</span>
+            </label>
+            {
+              FILTER_TERRAINS.map((terrain) => (
+                <label class="chip" data-terrain={terrain}>
+                  <input type="radio" name="terrain" value={terrain} />
+                  <span>{t(`terrain.${terrain}`)}</span>
+                </label>
+              ))
+            }
+          </div>
+        </fieldset>
+        <fieldset class="filters__group">
+          <legend class="filters__legend">{t('filter.region')}</legend>
+          <div class="chips">
+            <label class="chip">
+              <input type="radio" name="region" value="" checked />
+              <span>{t('filter.all')}</span>
+            </label>
+            {
+              REGIONS.map((region) => (
+                <label class="chip" data-terrain={region.accent}>
+                  <input type="radio" name="region" value={region.id} />
+                  <span>{region.name[locale]}</span>
+                </label>
+              ))
+            }
+          </div>
+        </fieldset>
+        <div class="filters__status">
+          <p class="filters__count" role="status" aria-live="polite" data-trip-count>
+            {t('filter.count', { count: trips.length })}
+          </p>
+          <button type="reset" class="filters__reset" data-trip-reset>
+            <Icon name="close" size={16} />
+            {t('filter.reset')}
+          </button>
+        </div>
+      </form>
+
+      <ul class="trip-grid" role="list" data-trip-list>
+        {
+          trips.map((trip) => (
+            <li data-trip data-terrain-list={trip.data.terrain.join(' ')} data-region={trip.data.region}>
+              <TripCard trip={trip} locale={locale} headingLevel="h2" />
+            </li>
+          ))
+        }
+      </ul>
+      <p class="trips__empty muted" data-trip-empty hidden>{t('filter.empty')}</p>
+    </div>
+  </section>
+
+  <script>
+    import '../scripts/trip-filters.ts';
+  </script>
+</BaseLayout>
+
+<style>
+  .filters {
+    display: none;
+    gap: 1.25rem;
+    margin-block-end: 2rem;
+    padding: 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  /* Filters need JS; without it every trip is simply listed. */
+  :global(.js) .filters {
+    display: grid;
+  }
+  .filters__group {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-inline-size: 0;
+  }
+  .filters__legend {
+    margin-block-end: 0.6rem;
+    padding: 0;
+    font-weight: 600;
+    color: var(--fg-muted);
+    font-size: 0.9rem;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .chip {
+    position: relative;
+    cursor: pointer;
+  }
+  .chip input {
+    position: absolute;
+    opacity: 0;
+    inset: 0;
+    margin: 0;
+    cursor: pointer;
+  }
+  .chip span {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: var(--tap);
+    padding-inline: 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    background: var(--bg);
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition:
+      background-color 0.2s var(--ease-out),
+      border-color 0.2s var(--ease-out);
+  }
+  .chip:hover span {
+    border-color: var(--fg-muted);
+  }
+  .chip input:checked + span {
+    background: var(--btn-bg);
+    border-color: var(--btn-bg);
+    color: var(--btn-fg);
+  }
+  .chip[data-terrain] input:checked + span {
+    background: var(--terrain);
+    border-color: var(--terrain);
+    color: var(--on-terrain);
+  }
+  .chip input:focus-visible + span {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+  .filters__status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-block-start: 1rem;
+    border-block-start: 1px solid var(--border);
+  }
+  .filters__count {
+    font-weight: 600;
+  }
+  .filters__reset {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-block-size: var(--tap);
+    padding-inline: 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    cursor: pointer;
+  }
+  .filters__reset:hover {
+    border-color: var(--fg-muted);
+  }
+  [data-trip][hidden] {
+    display: none;
+  }
+  .trips__empty {
+    padding-block: 2rem;
+    text-align: center;
+    font-size: 1.1rem;
+  }
+</style>
