@@ -1,0 +1,35 @@
+---
+/**
+ * Club logo. Source: public/brand/logo.jpg (150×150 JPG on white).
+ * The circle crop hides the white corners; the badge itself is never cropped
+ * or stretched. Callers keep 25% of the diameter as clear space around it.
+ * TODO(owner): replace with a ≥1024px transparent PNG or SVG (see README).
+ */
+interface Props {
+  size?: number;
+  alt: string;
+  class?: string;
+  eager?: boolean;
+}
+const { size = 48, alt, class: className = '', eager = false } = Astro.props;
+---
+
+<img
+  class:list={['logo', className]}
+  src="/brand/logo.jpg"
+  width={size}
+  height={size}
+  alt={alt}
+  loading={eager ? 'eager' : 'lazy'}
+  decoding="async"
+/>
+
+<style>
+  .logo {
+    flex: none;
+    border-radius: 50%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    background: var(--white);
+  }
+</style>

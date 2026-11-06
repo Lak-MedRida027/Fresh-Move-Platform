@@ -1,0 +1,134 @@
+---
+import Logo from './Logo.astro';
+import Icon from './Icon.astro';
+import ThemeToggle from './ThemeToggle.astro';
+import LangSwitch from './LangSwitch.astro';
+import { INSTAGRAM, SITE } from '../config/site';
+import { localizePath, useTranslations, type Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+  pathname: string;
+}
+const { locale, pathname } = Astro.props;
+const t = useTranslations(locale);
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="container site-footer__inner">
+    <div class="site-footer__brand">
+      <Logo size={64} alt={SITE.name} />
+      <div>
+        <p class="site-footer__tagline" dir="auto">{t('site.tagline')}</p>
+        <p class="muted">{t('footer.pillars')}</p>
+      </div>
+    </div>
+
+    <p class="site-footer__booking">
+      <Icon name="instagram" size={18} />
+      <span>{t('footer.booking')}</span>
+    </p>
+
+    <ul class="site-footer__links" role="list">
+      <li>
+        <a class="btn btn-ghost" href={INSTAGRAM.profile} rel="noopener" target="_blank" data-instagram-link>
+          <Icon name="instagram" size={20} />
+          <span>{t('footer.instagram')}</span>
+          <span class="visually-hidden">{t('a11y.opensInstagram')}</span>
+        </a>
+      </li>
+      <li>
+        <a class="btn btn-ghost" href={INSTAGRAM.dm} rel="noopener" target="_blank" data-instagram-link>
+          <Icon name="message" size={20} />
+          <span>{t('footer.dm')}</span>
+          <span class="visually-hidden">{t('a11y.opensInstagram')}</span>
+        </a>
+      </li>
+    </ul>
+
+    <div class="site-footer__bottom">
+      <div class="site-footer__tools">
+        <LangSwitch locale={locale} pathname={pathname} />
+        <ThemeToggle locale={locale} />
+        <a class="site-footer__privacy" href={localizePath('/privacy/', locale)}>{t('footer.privacy')}</a>
+      </div>
+      <p class="muted site-footer__copy">
+        <span class="latin-inline">© {year} {SITE.name}</span>
+        <span>{t('footer.rights')}</span>
+        <span class="latin-inline">{SITE.handle}</span>
+      </p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    margin-block-start: var(--section-y);
+    padding-block: 3rem max(2rem, env(safe-area-inset-bottom, 0px));
+    background: var(--surface);
+    border-block-start: 1px solid var(--border);
+  }
+  .site-footer__inner {
+    display: grid;
+    gap: 2rem;
+  }
+  .site-footer__brand {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .site-footer__brand :global(.logo) {
+    margin-block: 16px; /* 25% of the 64px diameter as clear space */
+  }
+  .site-footer__tagline {
+    font-family: var(--font-arabic);
+    font-weight: 700;
+    font-size: 1.25rem;
+  }
+  .site-footer__booking {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--fg-muted);
+  }
+  .site-footer__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .site-footer__bottom {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-block-start: 1.5rem;
+    border-block-start: 1px solid var(--border);
+  }
+  .site-footer__tools {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .site-footer__privacy {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: var(--tap);
+    padding-inline: 0.5rem;
+  }
+  .site-footer__copy {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+    font-size: 0.875rem;
+  }
+  .latin-inline {
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-family: var(--font-ui);
+  }
+</style>

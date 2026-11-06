@@ -1,0 +1,215 @@
+---
+import Logo from './Logo.astro';
+import Icon from './Icon.astro';
+import ThemeToggle from './ThemeToggle.astro';
+import LangSwitch from './LangSwitch.astro';
+import { localizePath, stripLocale, useTranslations, type Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+  pathname: string;
+}
+const { locale, pathname } = Astro.props;
+const t = useTranslations(locale);
+const home = localizePath('/', locale);
+const current = stripLocale(pathname);
+
+const links = [
+  { href: localizePath('/trips/', locale), label: t('nav.trips'), match: '/trips' },
+  { href: `${home}#how`, label: t('nav.how'), match: null },
+  { href: `${home}#faq`, label: t('nav.faq'), match: null },
+];
+const joinHref = localizePath('/join/', locale);
+---
+
+<header class="site-header">
+  <div class="container site-header__bar">
+    <a class="site-header__brand" href={home} aria-label={t('a11y.home')}>
+      <Logo size={40} alt="" eager />
+      <span class="site-header__name display" aria-hidden="true">Fresh Move</span>
+    </a>
+
+    <nav class="site-nav" id="site-nav" aria-label={t('a11y.mainNav')} data-nav>
+      <ul class="site-nav__list" role="list">
+        {
+          links.map((link) => (
+            <li>
+              <a
+                class="site-nav__link"
+                href={link.href}
+                aria-current={link.match && current.startsWith(link.match) ? 'page' : undefined}
+              >
+                {link.label}
+              </a>
+            </li>
+          ))
+        }
+        <li class="site-nav__cta">
+          <a
+            class="btn btn-primary"
+            href={joinHref}
+            aria-current={current.startsWith('/join') ? 'page' : undefined}
+          >
+            {t('nav.join')}
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <div class="site-header__tools">
+      <LangSwitch locale={locale} pathname={pathname} />
+      <ThemeToggle locale={locale} />
+      <button
+        type="button"
+        class="icon-btn site-header__menu"
+        aria-expanded="false"
+        aria-controls="site-nav"
+        aria-label={t('a11y.menu')}
+        data-menu-toggle
+      >
+        <Icon name="menu" class="menu-open" size={24} />
+        <Icon name="close" class="menu-close" size={24} />
+      </button>
+    </div>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 50;
+    background: color-mix(in srgb, var(--bg) 90%, transparent);
+    backdrop-filter: blur(10px);
+    border-block-end: 1px solid var(--border);
+  }
+  .site-header__bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-block-size: 64px;
+  }
+  .site-header__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--fg);
+    text-decoration: none;
+    min-block-size: var(--tap);
+    margin-inline-end: auto;
+  }
+  .site-header__name {
+    font-size: 1.15rem;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+  .site-header__tools {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  :global(.icon-btn) {
+    display: inline-grid;
+    place-items: center;
+    inline-size: var(--tap);
+    block-size: var(--tap);
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: transparent;
+    color: var(--fg);
+    cursor: pointer;
+  }
+  :global(.icon-btn:hover) {
+    border-color: var(--fg-muted);
+  }
+
+  .site-nav__list {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .site-nav__link {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: var(--tap);
+    padding-inline: 0.8rem;
+    color: var(--fg);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .site-nav__link:hover,
+  .site-nav__link[aria-current='page'] {
+    color: var(--link);
+  }
+  .site-nav__link[aria-current='page'] {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+  }
+  .site-nav__cta {
+    margin-inline-start: 0.5rem;
+  }
+
+  .site-header__menu :global(.menu-close) {
+    display: none;
+  }
+  .site-header__menu[aria-expanded='true'] :global(.menu-open) {
+    display: none;
+  }
+  .site-header__menu[aria-expanded='true'] :global(.menu-close) {
+    display: block;
+  }
+
+  /* Mobile: nav is a drop-down panel (with JS) or a wrapped row (without JS) */
+  @media (max-width: 52rem) {
+    .site-header__bar {
+      flex-wrap: wrap;
+    }
+    .site-nav {
+      order: 3;
+      inline-size: 100%;
+    }
+    .site-nav__list {
+      flex-wrap: wrap;
+    }
+    :global(.js) .site-nav {
+      display: none;
+      padding-block: 0.25rem 1rem;
+    }
+    :global(.js) .site-nav.is-open {
+      display: block;
+    }
+    :global(.js) .site-nav__list {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    :global(.js) .site-nav__link {
+      padding-inline: 0.25rem;
+      border-block-end: 1px solid var(--border);
+    }
+    .site-nav__cta {
+      margin-inline-start: 0;
+      margin-block-start: 0.75rem;
+    }
+    .site-nav__cta .btn {
+      inline-size: 100%;
+    }
+  }
+  @media (max-width: 25.99rem) {
+    .site-header__name {
+      display: none;
+    }
+  }
+  @media (min-width: 52.01rem) {
+    .site-header__menu {
+      display: none;
+    }
+  }
+  :global(html:not(.js)) .site-header__menu {
+    display: none;
+  }
+</style>

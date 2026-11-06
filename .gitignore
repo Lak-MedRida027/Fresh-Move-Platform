@@ -1,0 +1,23 @@
+# build output
+dist/
+.vercel/
+.astro/
+
+# dependencies
+node_modules/
+
+# env (keep the example)
+.env*
+!.env.example
+
+# test output
+test-results/
+playwright-report/
+blob-report/
+coverage/
+
+# logs / OS
+npm-debug.log*
+*.log
+.DS_Store
+Thumbs.db

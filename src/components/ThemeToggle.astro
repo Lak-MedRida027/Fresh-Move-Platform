@@ -1,0 +1,36 @@
+---
+import Icon from './Icon.astro';
+import { useTranslations, type Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+  class?: string;
+}
+const { locale, class: className = '' } = Astro.props;
+const t = useTranslations(locale);
+---
+
+<!-- aria-pressed="true" means dark mode is on. The script in src/scripts/site.ts keeps it in sync. -->
+<button
+  type="button"
+  class:list={['theme-toggle', 'icon-btn', className]}
+  data-theme-toggle
+  aria-pressed="true"
+  aria-label={t('theme.toggle')}
+  title={t('theme.toggle')}
+>
+  <Icon name="moon" class="theme-toggle__moon" size={22} />
+  <Icon name="sun" class="theme-toggle__sun" size={22} />
+</button>
+
+<style>
+  .theme-toggle__sun {
+    display: none;
+  }
+  :global(:root[data-theme='light']) .theme-toggle__sun {
+    display: block;
+  }
+  :global(:root[data-theme='light']) .theme-toggle__moon {
+    display: none;
+  }
+</style>

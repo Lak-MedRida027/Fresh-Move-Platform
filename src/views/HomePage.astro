@@ -1,0 +1,17 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { useTranslations, type Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+---
+
+<BaseLayout locale={locale} title={t('meta.home.title')} description={t('meta.home.description')}>
+  <section class="section container">
+    <h1>{t('site.tagline')}</h1>
+    <p class="muted">{t('footer.pillars')}</p>
+  </section>
+</BaseLayout>

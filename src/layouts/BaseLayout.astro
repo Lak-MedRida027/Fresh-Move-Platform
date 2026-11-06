@@ -1,0 +1,95 @@
+---
+import '../styles/global.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { THEME_INIT_SCRIPT } from '../scripts/theme-init';
+import { LOCALES, LOCALE_META, localizePath, stripLocale, useTranslations, type Locale } from '../i18n';
+import { SITE } from '../config/site';
+
+interface Props {
+  locale: Locale;
+  title: string;
+  description: string;
+  /** Social share image, absolute path from the site root. */
+  ogImage?: string;
+  ogType?: 'website' | 'article';
+  noindex?: boolean;
+}
+
+const { locale, title, description, ogImage = '/og/og-default.png', ogType = 'website', noindex = false } =
+  Astro.props;
+const t = useTranslations(locale);
+const meta = LOCALE_META[locale];
+const pathname = Astro.url.pathname;
+const basePath = stripLocale(pathname);
+const site = Astro.site ?? new URL(SITE.url);
+const canonical = new URL(localizePath(basePath, locale), site).href;
+const alternates = LOCALES.map((l) => ({
+  hreflang: LOCALE_META[l].hreflang,
+  href: new URL(localizePath(basePath, l), site).href,
+}));
+const xDefault = new URL(localizePath(basePath, 'ar'), site).href;
+const ogImageUrl = new URL(ogImage, site).href;
+---
+
+<!doctype html>
+<html lang={meta.lang} dir={meta.dir}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <script is:inline set:html={THEME_INIT_SCRIPT} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <link rel="canonical" href={canonical} />
+    {alternates.map((a) => <link rel="alternate" hreflang={a.hreflang} href={a.href} />)}
+    <link rel="alternate" hreflang="x-default" href={xDefault} />
+
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#0F0F0F" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#F5F2ED" media="(prefers-color-scheme: light)" />
+
+    <meta property="og:type" content={ogType} />
+    <meta property="og:site_name" content={SITE.name} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content={meta.ogLocale} />
+    {
+      LOCALES.filter((l) => l !== locale).map((l) => (
+        <meta property="og:locale:alternate" content={LOCALE_META[l].ogLocale} />
+      ))
+    }
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageUrl} />
+
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <slot name="head" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">{t('a11y.skip')}</a>
+    <Header locale={locale} pathname={pathname} />
+    <main id="main" tabindex="-1">
+      <slot />
+    </main>
+    <Footer locale={locale} pathname={pathname} />
+    <script>
+      import '../scripts/site.ts';
+    </script>
+  </body>
+</html>
+
+<style>
+  main:focus {
+    outline: none;
+  }
+</style>

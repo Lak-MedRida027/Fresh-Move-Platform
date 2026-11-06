@@ -1,0 +1,157 @@
+/*
+ * Fresh Move design tokens, from docs/brand/Fresh Move Brand Kit.html.
+ * Every color in the site comes from here. Dark is the default theme.
+ * The theme is set on <html data-theme="dark|light"> by the inline bootstrap
+ * script in BaseLayout; the media query is the no-JS fallback.
+ */
+
+:root {
+  /* Fixed brand colors (same in both themes) */
+  --night-rock: #1a1815;
+  --sandstone-white: #e8e5e0;
+  --burnt-earth: #2a1e10;
+  --overlay-dark: rgba(0, 0, 0, 0.55);
+  --overlay-text: rgba(255, 255, 255, 0.85);
+  --white: #ffffff;
+
+  /* Photo overlay gradient (always dark, both themes) */
+  --photo-scrim: linear-gradient(
+    180deg,
+    rgba(15, 15, 15, 0.35) 0%,
+    rgba(42, 30, 16, 0.55) 45%,
+    rgba(15, 15, 15, 0.92) 100%
+  );
+  --photo-scrim-bottom: linear-gradient(
+    180deg,
+    rgba(15, 15, 15, 0) 30%,
+    rgba(42, 30, 16, 0.7) 65%,
+    rgba(15, 15, 15, 0.95) 100%
+  );
+  --on-photo: var(--sandstone-white);
+
+  /* Shape and spacing */
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-pill: 999px;
+  --container: 72rem;
+  --gutter: 16px;
+  --section-y: clamp(3.5rem, 8vw, 6.5rem);
+  --tap: 44px;
+
+  /* Type */
+  --font-display-latin: 'Oswald', 'Arial Narrow', Impact, sans-serif;
+  --font-arabic: 'Noto Sans Arabic', 'Inter', 'Geeza Pro', 'Segoe UI', Tahoma, sans-serif;
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* ---------- Dark theme (default) ---------- */
+  --bg: #0f0f0f;
+  --surface: #1a1a1a;
+  --surface-raised: #242424;
+  --fg: #e8e5e0;
+  --fg-muted: #9a9590;
+  --border: #2a2a2a;
+  --accent-olive: #6b7a2e;
+  --accent-olive-light: #8fa33d;
+  --accent-sand: #c4a96a;
+  --accent-terra: #b85c38;
+  --accent-forest: #3a5a3a;
+  --accent-sky: #5b8fa8;
+
+  /* Derived roles (picked for WCAG AA contrast, see docs/DEBUG_LOG.md) */
+  --link: var(--accent-olive-light);
+  --focus: var(--accent-olive-light);
+  --btn-bg: var(--accent-olive);
+  --btn-bg-hover: #5d6a27;
+  --btn-fg: var(--white); /* 4.7:1 on #6B7A2E; off-white would be 3.7:1 */
+  --on-sand: var(--night-rock);
+  --on-terra: var(--white);
+  --on-forest: var(--white);
+  --on-sky: var(--night-rock);
+  --on-olive: var(--white);
+  --error: #e58a68;
+  --success: var(--accent-olive-light);
+  --shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+
+  color-scheme: dark;
+}
+
+/* ---------- Light theme ---------- */
+:root[data-theme='light'] {
+  --bg: #f5f2ed;
+  --surface: #ffffff;
+  --surface-raised: #f0ece6;
+  --fg: #1a1815;
+  --fg-muted: #6b665e;
+  --border: #ddd8d0;
+  --accent-olive: #5a6a24;
+  --accent-olive-light: #7a9230;
+  --accent-sand: #a08548;
+  --accent-terra: #9e4a2a;
+  --accent-forest: #2e4a2e;
+  --accent-sky: #4a7a92;
+
+  --link: var(--accent-olive); /* olive-light is only 3.1:1 on the light bg */
+  --focus: var(--accent-olive);
+  --btn-bg: var(--accent-olive);
+  --btn-bg-hover: #4a5820;
+  --btn-fg: var(--white);
+  --on-sand: var(--night-rock);
+  --on-terra: var(--white);
+  --on-forest: var(--white);
+  --on-sky: var(--white);
+  --on-olive: var(--white);
+  --error: #a3361c;
+  --success: var(--accent-olive);
+  --shadow: 0 10px 30px rgba(42, 30, 16, 0.12);
+
+  color-scheme: light;
+}
+
+/* No-JS fallback: follow the system when no theme attribute was set */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --bg: #f5f2ed;
+    --surface: #ffffff;
+    --surface-raised: #f0ece6;
+    --fg: #1a1815;
+    --fg-muted: #6b665e;
+    --border: #ddd8d0;
+    --accent-olive: #5a6a24;
+    --accent-olive-light: #7a9230;
+    --accent-sand: #a08548;
+    --accent-terra: #9e4a2a;
+    --accent-forest: #2e4a2e;
+    --accent-sky: #4a7a92;
+    --link: var(--accent-olive);
+    --focus: var(--accent-olive);
+    --btn-bg: var(--accent-olive);
+    --btn-bg-hover: #4a5820;
+    --on-sky: var(--white);
+    --error: #a3361c;
+    --success: var(--accent-olive);
+    --shadow: 0 10px 30px rgba(42, 30, 16, 0.12);
+    color-scheme: light;
+  }
+}
+
+/* Terrain → color (brand kit "Color by Terrain"). Heritage uses Desert Gold. */
+[data-terrain='desert'],
+[data-terrain='heritage'] {
+  --terrain: var(--accent-sand);
+  --on-terrain: var(--on-sand);
+}
+[data-terrain='mountain'] {
+  --terrain: var(--accent-forest);
+  --on-terrain: var(--on-forest);
+}
+[data-terrain='coast'],
+[data-terrain='diving'] {
+  --terrain: var(--accent-sky);
+  --on-terrain: var(--on-sky);
+}
+[data-terrain='camping'] {
+  --terrain: var(--accent-terra);
+  --on-terrain: var(--on-terra);
+}

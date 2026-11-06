@@ -1,0 +1,91 @@
+---
+/**
+ * Inline SVG icons (no icon font, no external requests).
+ * Directional icons get the `flip-rtl` class so they mirror in RTL.
+ */
+export type IconName =
+  | 'sun'
+  | 'moon'
+  | 'instagram'
+  | 'message'
+  | 'menu'
+  | 'close'
+  | 'arrow'
+  | 'chevron'
+  | 'chevron-down'
+  | 'compass'
+  | 'mountain'
+  | 'tent'
+  | 'columns'
+  | 'route'
+  | 'waves'
+  | 'sun-desert'
+  | 'pin'
+  | 'users'
+  | 'heart'
+  | 'flag'
+  | 'spark'
+  | 'check';
+
+interface Props {
+  name: IconName;
+  size?: number;
+  class?: string;
+  label?: string;
+}
+
+const { name, size = 24, class: className = '', label } = Astro.props;
+const directional = new Set<IconName>(['arrow', 'chevron']);
+const classes = [className, directional.has(name) ? 'flip-rtl' : ''].filter(Boolean).join(' ');
+
+const paths: Record<IconName, string> = {
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon: '<path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/>',
+  instagram:
+    '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.6" fill="currentColor"/>',
+  message:
+    '<path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.6L3 21l1.9-5.6A8.5 8.5 0 1 1 21 11.5z"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  close: '<path d="M6 6l12 12M18 6L6 18"/>',
+  arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  chevron: '<path d="M9 6l6 6-6 6"/>',
+  'chevron-down': '<path d="M6 9l6 6 6-6"/>',
+  compass:
+    '<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2"/>',
+  mountain: '<path d="M3 20l6-11 4 6 2-3 6 8z"/><path d="M8 11.5l1-2 1.5 2"/>',
+  tent: '<path d="M3 20L12 4l9 16z"/><path d="M12 4v16M9 20l3-6 3 6"/>',
+  columns:
+    '<path d="M3 21h18M4 8h16M12 3L4 8M12 3l8 5"/><path d="M6 8v10M10 8v10M14 8v10M18 8v10M4 18h16"/>',
+  route:
+    '<circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h7.5a3.5 3.5 0 0 0 0-7h-7a3.5 3.5 0 0 1 0-7H16"/>',
+  waves:
+    '<path d="M2 8c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 13c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 18c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>',
+  'sun-desert':
+    '<circle cx="15" cy="8" r="3"/><path d="M2 19c3-4 6-5 9-3s6 1 11-2M2 22h20"/>',
+  pin: '<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+  users:
+    '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6.5 6.5 0 0 1 3.5 6"/>',
+  heart:
+    '<path d="M12 20s-8-4.9-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 9c0 6.1-8 11-8 11z"/>',
+  flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+  spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/>',
+  check: '<path d="M4 12.5l5 5L20 6.5"/>',
+};
+---
+
+<svg
+  class={classes || undefined}
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.8"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  role={label ? 'img' : undefined}
+  aria-label={label}
+  aria-hidden={label ? undefined : 'true'}
+  focusable="false"
+  set:html={paths[name]}
+/>

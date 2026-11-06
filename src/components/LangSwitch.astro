@@ -1,0 +1,51 @@
+---
+import { otherLocale, switchLocalePath, useTranslations, LOCALE_META, type Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+  /** Current pathname, used to stay on the same page in the other language. */
+  pathname: string;
+  class?: string;
+}
+const { locale, pathname, class: className = '' } = Astro.props;
+const t = useTranslations(locale);
+const target = otherLocale(locale);
+const href = switchLocalePath(pathname, target);
+---
+
+<a
+  class:list={['lang-switch', className]}
+  href={href}
+  hreflang={LOCALE_META[target].hreflang}
+  lang={LOCALE_META[target].lang}
+  aria-label={t('lang.switchLabel')}
+  data-lang-switch
+>
+  {t('lang.switch')}
+</a>
+
+<style>
+  .lang-switch {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-block-size: var(--tap);
+    min-inline-size: var(--tap);
+    padding-inline: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    color: var(--fg);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+  }
+  .lang-switch:lang(ar) {
+    font-family: var(--font-arabic);
+  }
+  .lang-switch:lang(en) {
+    font-family: var(--font-ui);
+  }
+  .lang-switch:hover {
+    border-color: var(--fg-muted);
+  }
+</style>

@@ -1,0 +1,832 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Fresh Move Brand Kit</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;500;600&display=swap">
+
+<style>
+  /* Layout: single-column brand guide, section cards with generous whitespace */
+  :root {
+    --bg: #0F0F0F;
+    --surface: #1A1A1A;
+    --surface-raised: #242424;
+    --fg: #E8E5E0;
+    --fg-muted: #9A9590;
+    --accent-olive: #6B7A2E;
+    --accent-olive-light: #8FA33D;
+    --accent-sand: #C4A96A;
+    --accent-terra: #B85C38;
+    --accent-forest: #3A5A3A;
+    --accent-sky: #5B8FA8;
+    --border: #2A2A2A;
+    --radius: 12px;
+    color-scheme: dark;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #F5F2ED;
+      --surface: #FFFFFF;
+      --surface-raised: #F0ECE6;
+      --fg: #1A1815;
+      --fg-muted: #6B665E;
+      --accent-olive: #5A6A24;
+      --accent-olive-light: #7A9230;
+      --accent-sand: #A08548;
+      --accent-terra: #9E4A2A;
+      --accent-forest: #2E4A2E;
+      --accent-sky: #4A7A92;
+      --border: #DDD8D0;
+      color-scheme: light;
+    }
+  }
+
+  :root[data-theme="light"] {
+    --bg: #F5F2ED;
+    --surface: #FFFFFF;
+    --surface-raised: #F0ECE6;
+    --fg: #1A1815;
+    --fg-muted: #6B665E;
+    --accent-olive: #5A6A24;
+    --accent-olive-light: #7A9230;
+    --accent-sand: #A08548;
+    --accent-terra: #9E4A2A;
+    --accent-forest: #2E4A2E;
+    --accent-sky: #4A7A92;
+    --border: #DDD8D0;
+    color-scheme: light;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Inter', -apple-system, sans-serif;
+    line-height: 1.6;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 0;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0 0 auto;
+    height: env(safe-area-inset-top, 0px);
+    z-index: 10;
+    background: var(--bg);
+  }
+
+  /* ---- Typography ---- */
+  .display { font-family: 'Oswald', 'Impact', sans-serif; text-transform: uppercase; letter-spacing: 0.04em; }
+  .arabic { font-family: 'Noto Sans Arabic', 'Geeza Pro', sans-serif; direction: rtl; }
+  .label { font-family: 'Inter', sans-serif; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--fg-muted); }
+
+  /* ---- Header ---- */
+  .header {
+    padding: 3rem 0 2rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .header h1 {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(2.4rem, 6vw, 3.8rem);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0;
+    line-height: 1.1;
+    text-wrap: balance;
+  }
+  .header .sub {
+    font-size: 0.85rem;
+    color: var(--fg-muted);
+    margin-top: 0.5rem;
+  }
+
+  /* ---- Sections ---- */
+  .section {
+    padding: 2.5rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .section:last-child { border-bottom: none; }
+  .section-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent-olive-light);
+    margin: 0 0 1.8rem;
+  }
+
+  /* ---- Logo description ---- */
+  .logo-area {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+  .logo-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .logo-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem;
+    position: relative;
+  }
+  .logo-preview.dark-bg { background: #0A0A0A; }
+  .logo-preview.light-bg { background: #F0ECE6; }
+
+  .logo-circle {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .logo-circle.primary {
+    background: linear-gradient(135deg, #1A1A1A 0%, #2A2A2A 100%);
+    border: 4px solid #E8E5E0;
+    box-shadow: 0 0 0 2px #0A0A0A, 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .logo-circle .logo-text {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #E8E5E0;
+    line-height: 1;
+    text-align: center;
+    letter-spacing: 0.02em;
+    z-index: 1;
+  }
+  .logo-circle .logo-text .fresh { font-size: 1.6rem; display: block; }
+  .logo-circle .logo-text .move { font-size: 1.4rem; display: block; margin-top: -2px; }
+  .logo-circle .logo-text .move .o {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #E8E5E0;
+    border-radius: 50%;
+    vertical-align: middle;
+    margin: 0 -1px;
+    position: relative;
+  }
+  .logo-circle .logo-text .move .o::after {
+    content: '+';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 10px;
+    line-height: 1;
+  }
+
+  .logo-specs {
+    padding: 1.2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .logo-specs .spec-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.82rem;
+  }
+  .spec-label { color: var(--fg-muted); }
+  .spec-value { font-weight: 500; }
+
+  /* ---- Color palette ---- */
+  .palette-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+  .color-card {
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .color-swatch {
+    height: 80px;
+    position: relative;
+  }
+  .color-swatch .hex {
+    position: absolute;
+    bottom: 8px;
+    left: 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    font-family: 'Inter', monospace;
+    letter-spacing: 0.04em;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .color-swatch .hex.light-text { color: #F5F2ED; }
+  .color-swatch .hex.dark-text { color: #1A1815; }
+  .color-info {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .color-name { font-size: 0.78rem; font-weight: 600; }
+  .color-role { font-size: 0.68rem; color: var(--fg-muted); }
+
+  /* ---- Typography specimen ---- */
+  .type-specimens {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+  .type-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+  }
+  .type-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .type-name { font-weight: 600; font-size: 0.85rem; }
+  .type-meta { font-size: 0.72rem; color: var(--fg-muted); }
+  .type-sample {
+    padding: 1.2rem 0 0.5rem;
+    border-top: 1px solid var(--border);
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
+  .type-sample.oswald-sample {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    line-height: 1.15;
+    text-wrap: balance;
+  }
+  .type-sample.arabic-sample {
+    font-family: 'Noto Sans Arabic', sans-serif;
+    font-weight: 700;
+    font-size: clamp(1.6rem, 3.5vw, 2.2rem);
+    line-height: 1.4;
+    direction: rtl;
+    text-align: right;
+  }
+  .type-sample.inter-sample {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--fg-muted);
+  }
+  .weight-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-top: 0.8rem;
+    font-size: 0.78rem;
+    color: var(--fg-muted);
+  }
+  .weight-item span {
+    display: block;
+    color: var(--fg);
+    font-size: 1.1rem;
+    margin-bottom: 2px;
+  }
+
+  /* ---- Usage rules ---- */
+  .rules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+  }
+  .rule-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .rule-card .rule-icon { font-size: 1.4rem; }
+  .rule-card h3 { font-size: 0.85rem; font-weight: 600; margin: 0; }
+  .rule-card p { font-size: 0.78rem; color: var(--fg-muted); margin: 0; line-height: 1.5; }
+
+  /* ---- Watermark placement ---- */
+  .placement-demo {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .placement-visual {
+    aspect-ratio: 1 / 1;
+    max-width: 400px;
+    margin: 0 auto;
+    position: relative;
+    background: linear-gradient(135deg, #3A2E1A 0%, #5A4020 40%, #2A1E10 100%);
+    overflow: hidden;
+  }
+  .placement-visual::before {
+    content: 'LANDSCAPE PHOTO';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    color: rgba(255,255,255,0.15);
+    text-transform: uppercase;
+  }
+  .wm {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.6rem;
+    color: rgba(255,255,255,0.7);
+    letter-spacing: 0.04em;
+  }
+  .wm .dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    border: 1.5px solid rgba(255,255,255,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.4rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0;
+  }
+  .wm.bottom-left { bottom: 12px; left: 12px; }
+  .wm.bottom-right { bottom: 12px; right: 12px; }
+  .caption-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 32px;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.55rem;
+    color: rgba(255,255,255,0.6);
+    letter-spacing: 0.04em;
+  }
+  .caption-bar .arabic-caption {
+    font-family: 'Noto Sans Arabic', sans-serif;
+    font-size: 0.6rem;
+    direction: rtl;
+  }
+
+  .placement-notes {
+    padding: 1.2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .placement-notes li {
+    font-size: 0.78rem;
+    color: var(--fg-muted);
+    line-height: 1.5;
+    list-style: none;
+    padding-left: 1em;
+    position: relative;
+  }
+  .placement-notes li::before {
+    content: '>';
+    position: absolute;
+    left: 0;
+    color: var(--accent-olive-light);
+    font-weight: 600;
+  }
+
+  /* ---- Tone section ---- */
+  .tone-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 500px) { .tone-grid { grid-template-columns: 1fr; } }
+  .tone-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.2rem;
+  }
+  .tone-card .do-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 0.6rem;
+  }
+  .tone-card .do-label.yes { color: var(--accent-forest); }
+  .tone-card .do-label.no { color: var(--accent-terra); }
+  .tone-card p { font-size: 0.82rem; margin: 0; line-height: 1.5; }
+  .tone-card p + p { margin-top: 0.4rem; }
+  .tone-card .example {
+    font-style: italic;
+    color: var(--fg-muted);
+    font-size: 0.78rem;
+  }
+
+  /* ---- Footer ---- */
+  .footer {
+    padding: 2rem 0 3rem;
+    text-align: center;
+    color: var(--fg-muted);
+    font-size: 0.72rem;
+  }
+</style>
+
+<div class="header">
+  <h1 class="display">Fresh Move</h1>
+  <p class="sub">Brand Identity Kit &mdash; Colors, Fonts & Logo Guidelines</p>
+</div>
+
+<!-- LOGO -->
+<div class="section">
+  <div class="section-title">01 &middot; Logo</div>
+  <div class="logo-area">
+    <div class="logo-card">
+      <div class="logo-preview dark-bg">
+        <div class="logo-circle primary">
+          <div class="logo-text">
+            <span class="fresh">Fresh</span>
+            <span class="move">M<span class="o"></span>ve</span>
+          </div>
+        </div>
+      </div>
+      <div class="logo-specs">
+        <div class="spec-row">
+          <span class="spec-label">Shape</span>
+          <span class="spec-value">Circular badge / emblem</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Border</span>
+          <span class="spec-value">Off-white (#E8E5E0) ring, 3-4px</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Background</span>
+          <span class="spec-value">Dark charcoal, nature photo backdrop</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Wordmark font</span>
+          <span class="spec-value">Oswald Bold, uppercase</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">O in MOVE</span>
+          <span class="spec-value">Compass/crosshair icon glyph</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Imagery</span>
+          <span class="spec-value">Hiker silhouette with backpack</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Clear space</span>
+          <span class="spec-value">Minimum 1/4 of logo diameter</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="logo-card">
+        <div class="logo-preview dark-bg" style="padding:1.5rem;">
+          <div class="logo-circle primary" style="width:90px;height:90px;">
+            <div class="logo-text" style="transform:scale(0.55);">
+              <span class="fresh">Fresh</span>
+              <span class="move">M<span class="o"></span>ve</span>
+            </div>
+          </div>
+        </div>
+        <div style="padding:0.8rem 1rem; text-align:center;">
+          <span class="label">On Dark</span>
+        </div>
+      </div>
+      <div class="logo-card">
+        <div class="logo-preview light-bg" style="padding:1.5rem;">
+          <div class="logo-circle primary" style="width:90px;height:90px;">
+            <div class="logo-text" style="transform:scale(0.55);">
+              <span class="fresh">Fresh</span>
+              <span class="move">M<span class="o"></span>ve</span>
+            </div>
+          </div>
+        </div>
+        <div style="padding:0.8rem 1rem; text-align:center;">
+          <span class="label">On Light</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COLORS -->
+<div class="section">
+  <div class="section-title">02 &middot; Color Palette</div>
+
+  <p class="label" style="margin-bottom: 1rem;">Primary Colors</p>
+  <div class="palette-grid">
+    <div class="color-card">
+      <div class="color-swatch" style="background: #1A1815;">
+        <span class="hex light-text">#1A1815</span>
+      </div>
+      <div class="color-info">
+        <span class="color-name">Night Rock</span>
+        <span class="color-role">Primary background, logo fill</span>
+      </div>
+    </div>
+    <div class="color-card">
+      <div class="color-swatch" style="background: #E8E5E0;">
+        <span class="hex dark-text">#E8E5E0</span>
+      </div>
+      <div class="color-info">
+        <span class="color-name">Sandstone White</span>
+        <span class="color-role">Text on dark, logo border</span>
+      </div>
+    </div>
+    <div class="color-card">
+      <div class="color-swatch" style="background: #6B7A2E;">
+        <span class="hex light-text">#6B7A2E</span>
+      </div>
+      <div class="color-info">
+        <span class="color-name">Trail Olive</span>
+        <span class="color-role">Primary accent, tags, buttons</span>
+      </div>
+    </div>
+    <div class="color-card">
+      <div class="color-swatch" style="background: #C4A96A;">
+        <span class="hex dark-text">#C4A96A</span>
+      </div>
+      <div class="color-info">
+        <span class="color-name">Desert Gold</span>
+        <span class="color-role">Highlight, Sahara content</span>
+      </div>
+    </div>
+  </div>
+
+  <p class="label" style="margin: 1.8rem 0 1rem;">Secondary Colors</p>
+  <div class="palette-grid">
+    <div class="color-card">
+      <div class="color-swatch" style="background: #B85C38;">
+        <span class="hex light-text">#B85C38</span>
+      </div>
+      <div class="color-info">
+        <span class="color-name">Terra Red</span>
+        <span class="color-role">Warm accent, alerts, camp content</span>
+      </div>
+    </div>
+    <div class="color-card">
+      <div class="color-swatch" style="background: #3A5A3A;">
+        <span class="hex light-text">#3A5A3A</span>
+      </div>
+      <div class="color-info">
+        <span class="color-name">Cedar Green</span>
+        <span class="color-role">Forest / mountain content</span>
+      </div>
+    </div>
+    <div class="color-card">
+      <div class="color-swatch" style="background: #5B8FA8;">
+        <span class="hex light-text">#5B8FA8</span>
+      </div>
+      <div class="color-info">
+        <span class="color-name">Coast Blue</span>
+        <span class="color-role">Sea / diving content</span>
+      </div>
+    </div>
+    <div class="color-card">
+      <div class="color-swatch" style="background: #2A1E10;">
+        <span class="hex light-text">#2A1E10</span>
+      </div>
+      <div class="color-info">
+        <span class="color-name">Burnt Earth</span>
+        <span class="color-role">Photo overlay gradient base</span>
+      </div>
+    </div>
+  </div>
+
+  <p class="label" style="margin: 1.8rem 0 1rem;">Overlay & Caption</p>
+  <div class="palette-grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));">
+    <div class="color-card">
+      <div class="color-swatch" style="background: rgba(0,0,0,0.55); border-bottom: 1px solid var(--border);">
+        <span class="hex light-text">rgba(0,0,0,0.55)</span>
+      </div>
+      <div class="color-info">
+        <span class="color-name">Dark Overlay</span>
+        <span class="color-role">Caption bar, text readability</span>
+      </div>
+    </div>
+    <div class="color-card">
+      <div class="color-swatch" style="background: rgba(255,255,255,0.85);">
+        <span class="hex dark-text">rgba(255,255,255,0.85)</span>
+      </div>
+      <div class="color-info">
+        <span class="color-name">Light Text</span>
+        <span class="color-role">Overlaid captions on photos</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TYPOGRAPHY -->
+<div class="section">
+  <div class="section-title">03 &middot; Typography</div>
+  <div class="type-specimens">
+
+    <div class="type-card">
+      <div class="type-header">
+        <span class="type-name">Oswald</span>
+        <span class="type-meta">Display &middot; Google Fonts &middot; Headlines, Titles, Location Names</span>
+      </div>
+      <div class="type-sample oswald-sample">
+        Fresh Move<br>Tizeghben<br>Djanet &middot; Bordjme
+      </div>
+      <div class="weight-row">
+        <div class="weight-item">
+          <span style="font-family:'Oswald',sans-serif; font-weight:400;">Regular 400</span>
+          Subtitles
+        </div>
+        <div class="weight-item">
+          <span style="font-family:'Oswald',sans-serif; font-weight:600;">SemiBold 600</span>
+          Dates & info
+        </div>
+        <div class="weight-item">
+          <span style="font-family:'Oswald',sans-serif; font-weight:700;">Bold 700</span>
+          Headlines
+        </div>
+      </div>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <span class="type-name">Noto Sans Arabic</span>
+        <span class="type-meta">Arabic Display &middot; Google Fonts &middot; Darja captions & quotes</span>
+      </div>
+      <div class="type-sample arabic-sample">
+        خــايف تروح وتضــيع فيها<br>
+        وهو المكــتوب<br>
+        مايدوم لا صغرك لا صغري
+      </div>
+      <div class="weight-row">
+        <div class="weight-item">
+          <span style="font-family:'Noto Sans Arabic',sans-serif; font-weight:400; direction:rtl;">عادي 400</span>
+          Body
+        </div>
+        <div class="weight-item">
+          <span style="font-family:'Noto Sans Arabic',sans-serif; font-weight:700; direction:rtl;">ثقيل 700</span>
+          Display
+        </div>
+      </div>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <span class="type-name">Inter</span>
+        <span class="type-meta">Utility &middot; Google Fonts &middot; Captions, dates, watermarks, UI</span>
+      </div>
+      <div class="type-sample inter-sample">
+        13-14 November &middot; 2200 DA &middot; maps.app.goo.gl &middot; @fresh_move1<br>
+        Travel &middot; Nature &middot; History &middot; Adventure
+      </div>
+      <div class="weight-row">
+        <div class="weight-item">
+          <span style="font-family:'Inter',sans-serif; font-weight:400;">Regular 400</span>
+          Body text
+        </div>
+        <div class="weight-item">
+          <span style="font-family:'Inter',sans-serif; font-weight:500;">Medium 500</span>
+          Labels
+        </div>
+        <div class="weight-item">
+          <span style="font-family:'Inter',sans-serif; font-weight:600;">SemiBold 600</span>
+          Emphasis
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- WATERMARK / POST LAYOUT -->
+<div class="section">
+  <div class="section-title">04 &middot; Post Watermark & Layout</div>
+  <div class="placement-demo">
+    <div class="placement-visual">
+      <div class="wm bottom-left">
+        <div class="dot">FM</div>
+        <span>FRESH MOVE</span>
+      </div>
+      <div class="wm bottom-right" style="font-family:'Noto Sans Arabic',sans-serif; direction:rtl; font-size:0.55rem;">
+        الـ MOVE لي تفرح القلب
+      </div>
+      <div class="caption-bar">
+        <span>@fresh_move1</span>
+        <span class="arabic-caption">الـ MOVE لي تفرح القلب</span>
+      </div>
+    </div>
+    <ul class="placement-notes">
+      <li>Logo watermark sits in the bottom-left corner of every post</li>
+      <li>Arabic tagline appears bottom-right or in a translucent caption bar</li>
+      <li>Caption bar uses rgba(0,0,0,0.55) overlay for text legibility</li>
+      <li>Watermark opacity: 70-80% white on dark photos, reduced on lighter shots</li>
+      <li>Minimum watermark size: 18px wide on stories, 24px on feed posts</li>
+    </ul>
+  </div>
+</div>
+
+<!-- USAGE RULES -->
+<div class="section">
+  <div class="section-title">05 &middot; Usage Rules</div>
+  <div class="rules-grid">
+    <div class="rule-card">
+      <div class="rule-icon">&#x25EF;</div>
+      <h3>Logo Clearance</h3>
+      <p>Keep 25% of the logo's diameter as clear space around it. Never crop the circle or distort the aspect ratio.</p>
+    </div>
+    <div class="rule-card">
+      <div class="rule-icon">&#x25A0;</div>
+      <h3>Color Over Photos</h3>
+      <p>Always use the dark overlay gradient before placing text. Never put white text directly on a bright or busy image area.</p>
+    </div>
+    <div class="rule-card">
+      <div class="rule-icon">Aa</div>
+      <h3>Font Mixing</h3>
+      <p>Oswald for Latin display text. Noto Sans Arabic for Darja. Inter for small labels and data. Never substitute with system fonts.</p>
+    </div>
+    <div class="rule-card">
+      <div class="rule-icon">&#x2194;</div>
+      <h3>Bilingual Layout</h3>
+      <p>Arabic flows right-to-left and sits above or beside the Latin equivalent. Give each its own line; never interleave mid-word.</p>
+    </div>
+    <div class="rule-card">
+      <div class="rule-icon">&#x25B2;</div>
+      <h3>Trip Posters</h3>
+      <p>Destination name in Oswald uppercase, centered top third. Dates and price in Inter below. Terrain photo fills the background.</p>
+    </div>
+    <div class="rule-card">
+      <div class="rule-icon">&#x2600;</div>
+      <h3>Color by Terrain</h3>
+      <p>Desert Gold for Sahara trips. Cedar Green for mountain/forest. Coast Blue for coastal. Terra Red for campfire and canyon content.</p>
+    </div>
+  </div>
+</div>
+
+<!-- VOICE & TONE -->
+<div class="section">
+  <div class="section-title">06 &middot; Voice & Tone</div>
+  <div class="tone-grid">
+    <div class="tone-card">
+      <div class="do-label yes">Do</div>
+      <p>Speak in Algerian Darja, casual and motivational</p>
+      <p class="example">"El move لي تفرح القلب 🍀"</p>
+      <p class="example">"إحتياجاتك كل نهاية أسبوع..."</p>
+    </div>
+    <div class="tone-card">
+      <div class="do-label no">Don't</div>
+      <p>Use formal Modern Standard Arabic or corporate phrasing</p>
+      <p class="example">Avoid: "نقدم لكم خدمات السياحة والمغامرة"</p>
+    </div>
+    <div class="tone-card">
+      <div class="do-label yes">Do</div>
+      <p>Frame nature as emotional therapy and self-discovery</p>
+      <p class="example">"خــايف تروح وتضــيع فيها"</p>
+    </div>
+    <div class="tone-card">
+      <div class="do-label no">Don't</div>
+      <p>Use tourism-industry language or itinerary-style descriptions</p>
+      <p class="example">Avoid: "Day 1: Arrival and check-in..."</p>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  Fresh Move Brand Kit &middot; @fresh_move1 &middot; Generated November 2026
+</div>
+
+</body></html>
