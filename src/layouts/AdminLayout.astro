@@ -40,6 +40,7 @@ const nav = [
         { href: adminPath(locale, '/settings/'), label: t('nav.settings'), match: /\/admin\/settings/ },
       ]
     : []),
+  { href: adminPath(locale, '/password/'), label: t('nav.password'), match: /\/admin\/password/ },
 ];
 
 const okCode = Astro.url.searchParams.get('ok') ?? '';

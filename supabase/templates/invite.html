@@ -1,0 +1,14 @@
+<!-- Fresh Move admin invitation. Production: paste into Supabase → Authentication → Emails → "Invite user". -->
+<div dir="rtl" lang="ar" style="font-family: Arial, sans-serif; line-height: 1.6">
+  <h2>مرحبا بيك في لوحة تحكم Fresh Move</h2>
+  <p>تعيّنت مسؤول في الموقع. اضغط على الزر باش تختار كلمة السر، ومن بعد تربط تطبيق المصادقة بتيليفونك.</p>
+  <p><a href="{{ .SiteURL }}/admin/auth/confirm/?token_hash={{ .TokenHash }}&amp;type=invite" style="background:#3a5a3a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block">اختار كلمة السر</a></p>
+  <p style="color:#666">الرابط يخدم مرة وحدة. إذا ما كنتش تستنّى هاد الرسالة، تجاهلها.</p>
+</div>
+<hr />
+<div dir="ltr" lang="en" style="font-family: Arial, sans-serif; line-height: 1.6">
+  <h2>Welcome to the Fresh Move admin</h2>
+  <p>You've been added as an admin of the website. Click the button to choose your password, then link an authenticator app on your phone.</p>
+  <p><a href="{{ .SiteURL }}/en/admin/auth/confirm/?token_hash={{ .TokenHash }}&amp;type=invite" style="background:#3a5a3a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block">Choose my password</a></p>
+  <p style="color:#666">The link works once. If you weren't expecting this email, ignore it.</p>
+</div>

@@ -1,0 +1,14 @@
+<!-- Fresh Move admin password reset. Production: paste into Supabase → Authentication → Emails → "Reset password". -->
+<div dir="rtl" lang="ar" style="font-family: Arial, sans-serif; line-height: 1.6">
+  <h2>بدّل كلمة السر</h2>
+  <p>طلبت تبدّل كلمة السر تاع لوحة تحكم Fresh Move. اضغط على الزر، دخّل الكود من تطبيق المصادقة، ومن بعد اختار كلمة سر جديدة.</p>
+  <p><a href="{{ .SiteURL }}/admin/auth/confirm/?token_hash={{ .TokenHash }}&amp;type=recovery" style="background:#3a5a3a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block">بدّل كلمة السر</a></p>
+  <p style="color:#666">الرابط يخدم مرة وحدة ولمدة ساعة. إذا ما طلبتش هذا، تجاهل الرسالة: كلمة السر ما تتبدّلش.</p>
+</div>
+<hr />
+<div dir="ltr" lang="en" style="font-family: Arial, sans-serif; line-height: 1.6">
+  <h2>Reset your password</h2>
+  <p>Someone asked to reset the password of your Fresh Move admin account. Click the button, enter the code from your authenticator app, then choose a new password.</p>
+  <p><a href="{{ .SiteURL }}/en/admin/auth/confirm/?token_hash={{ .TokenHash }}&amp;type=recovery" style="background:#3a5a3a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block">Reset my password</a></p>
+  <p style="color:#666">The link works once, for an hour. If you didn't ask for this, ignore the email: your password stays the same.</p>
+</div>

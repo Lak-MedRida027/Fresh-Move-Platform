@@ -29,6 +29,8 @@ if (!verified) {
 }
 const factorId = verified?.id ?? enroll?.factorId ?? '';
 const heading = verified ? t('mfa.verifyTitle') : t('mfa.enrollTitle');
+// After a password-reset link: verify the code, then choose the new password.
+const nextPassword = Astro.url.searchParams.get('next') === 'password';
 ---
 
 <AdminLayout locale={locale} title={heading} bare>
@@ -49,6 +51,7 @@ const heading = verified ? t('mfa.verifyTitle') : t('mfa.enrollTitle');
     <form class="form" method="post" action="/admin/api/mfa/">
       <input type="hidden" name="lang" value={locale} />
       <input type="hidden" name="factorId" value={factorId} />
+      {nextPassword && <input type="hidden" name="next" value="password" />}
       <div class="field">
         <label class="field__label" for="mfa-code">{t('mfa.code')}</label>
         <input

@@ -1,0 +1,46 @@
+---
+/**
+ * Landing page of the invitation and password-reset emails. Shows a button
+ * instead of using the link right away: email scanners that open links would
+ * otherwise spend the one-time token before the person clicks.
+ */
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { adminT } from '../../i18n/admin';
+import type { Locale } from '../../i18n';
+import { linkType, validTokenHash } from '../../lib/admin/auth';
+import { adminPath } from '../../lib/admin/paths';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = adminT(locale);
+const type = linkType(Astro.url.searchParams.get('type'));
+const tokenHash = Astro.url.searchParams.get('token_hash');
+const valid = type && validTokenHash(tokenHash);
+const title = type === 'recovery' ? t('confirm.recoveryTitle') : t('confirm.inviteTitle');
+---
+
+<AdminLayout locale={locale} title={title} bare>
+  <section class="auth-card form-card" aria-labelledby="confirm-title">
+    <h1 id="confirm-title">{title}</h1>
+    {
+      valid ? (
+        <form class="form" method="post" action="/admin/api/confirm/" data-confirm-form>
+          <input type="hidden" name="lang" value={locale} />
+          <input type="hidden" name="type" value={type} />
+          <input type="hidden" name="token_hash" value={tokenHash} />
+          <p>{type === 'recovery' ? t('confirm.recoveryHelp') : t('confirm.inviteHelp')}</p>
+          <button class="btn btn-primary form__submit" type="submit">{t('confirm.continue')}</button>
+        </form>
+      ) : (
+        <>
+          <p class="admin-flash admin-flash--error" role="alert">{t('error.link')}</p>
+          <p>
+            <a href={adminPath(locale, '/forgot/')}>{t('forgot.link')}</a> · <a href={adminPath(locale, '/login/')}>{t('login.title')}</a>
+          </p>
+        </>
+      )
+    }
+  </section>
+</AdminLayout>

@@ -61,7 +61,7 @@ async function login(page: Page, info: TestInfo, who: Who, prefix = '') {
   await expect(page).toHaveURL(new RegExp(`${prefix}/admin/$`));
 }
 
-const ADMIN_PAGES = ['/admin/', '/admin/trips/', '/admin/trips/new/', '/admin/reservations/', '/admin/members/', '/admin/admins/', '/admin/audit/', '/admin/settings/'];
+const ADMIN_PAGES = ['/admin/', '/admin/trips/', '/admin/trips/new/', '/admin/reservations/', '/admin/members/', '/admin/admins/', '/admin/audit/', '/admin/settings/', '/admin/password/'];
 
 test.describe('admin access control', () => {
   test('every admin page redirects to login when signed out', async ({ request }) => {
@@ -532,10 +532,14 @@ test.describe('admin flows', () => {
         expect(bad, `${theme} ${p}`).toEqual([]);
       }
     }
-    // Login page (signed out).
+    // Signed-out pages: login, forgot password, the email link page.
     await page.context().clearCookies();
-    await page.goto('/en/admin/login/');
-    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
-    expect(results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')).toEqual([]);
+    for (const p of ['/admin/login/', '/admin/forgot/', `/admin/auth/confirm/?type=invite&token_hash=${'a'.repeat(56)}`]) {
+      for (const path of [p, `/en${p}`]) {
+        await page.goto(path);
+        const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+        expect(results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical'), path).toEqual([]);
+      }
+    }
   });
 });

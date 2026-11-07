@@ -1,0 +1,38 @@
+---
+/** "Forgot your password?": asks for the email and always answers the same way. */
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { adminT } from '../../i18n/admin';
+import type { Locale } from '../../i18n';
+import { adminPath } from '../../lib/admin/paths';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = adminT(locale);
+const sent = Astro.url.searchParams.has('sent');
+---
+
+<AdminLayout locale={locale} title={t('forgot.title')} bare>
+  <section class="auth-card form-card" aria-labelledby="forgot-title">
+    <h1 id="forgot-title">{t('forgot.title')}</h1>
+    {
+      sent ? (
+        <p class="admin-flash admin-flash--ok" role="status" data-forgot-sent>
+          {t('forgot.sent')}
+        </p>
+      ) : (
+        <form class="form" method="post" action="/admin/api/forgot/" data-forgot-form>
+          <input type="hidden" name="lang" value={locale} />
+          <p class="muted-sm">{t('forgot.help')}</p>
+          <div class="field">
+            <label class="field__label" for="forgot-email">{t('login.email')}</label>
+            <input class="field__input field__input--ltr" id="forgot-email" name="email" type="email" autocomplete="username" dir="ltr" required maxlength="200" />
+          </div>
+          <button class="btn btn-primary form__submit" type="submit">{t('forgot.submit')}</button>
+        </form>
+      )
+    }
+    <p><a href={adminPath(locale, '/login/')}>← {t('login.title')}</a></p>
+  </section>
+</AdminLayout>

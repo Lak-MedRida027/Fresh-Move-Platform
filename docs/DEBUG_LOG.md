@@ -309,3 +309,28 @@ An automated review flagged three weaknesses; all fixed with tests in `tests/api
   them, and the e2e suite uses the same database, so the home and trips pages rendered hundreds of cards.
   This was also behind the borderline timeouts seen in phase 7. Each DB test file now removes what it
   created (trips with their bookings and photo files, members, test accounts) in `tests/db/setup.ts`.
+
+## Pre-deploy review
+
+- **Blocker: invited admins could never sign in.** Owners are created by invitation email in production
+  (`create-owner.ts --production`), and the Admins page invites organisers the same way, but no page
+  accepted the email link or let anyone choose a password. The tests created admins with passwords
+  directly, so nothing failed. Added the account flow: the emails link to `/admin/auth/confirm/` (a
+  page with a "Continue" button, so link scanners can't spend the one-time token), which signs the person
+  in with a password-only session; `/admin/password/` sets the password; then MFA. "Forgot your
+  password?" sends a reset link; because Supabase refuses a password change without MFA once an account
+  has it (`insufficient_aal`, checked on the local stack), a reset goes link → authenticator code → new
+  password. Email templates in `supabase/templates/` (bilingual); e2e test reads the real emails from the
+  local mail catcher. Admins can also change their password from the menu.
+- **Production build values came from three places** (`SITE_URL` from the shell, `public/_headers` from
+  `.env`, the pages from Vite's `.env.production`), so a mismatch could ship a site pointing at the local
+  database. `npm run deploy` now reads `.env.production` only, refuses local/test values and secrets, and
+  passes them to every step.
+- **Supabase's built-in email only reaches members of the Supabase organisation** (since Sept 2024, ~2
+  emails/hour), so invitations to other admins need the club's own SMTP. Documented in docs/DEPLOY.md.
+- Added for the deploy: `npm run smoke` (read-only production check, incl. "is the Turnstile secret a
+  test key?"), `scripts/import-members.ts` (v1 sheet CSV → members, dry run by default, counts only),
+  `vercel-redirect/` (301 from the old address).
+- **`BASE_URL` could point the e2e suite at production.** A v1 convenience (v1 had no bookings); in v2 the
+  suite books seats and creates members. `playwright.config.ts` now refuses any non-local `BASE_URL`;
+  production is checked with the read-only `npm run smoke`.
