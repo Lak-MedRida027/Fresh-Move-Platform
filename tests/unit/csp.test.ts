@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { THEME_INIT_SCRIPT } from '../../src/scripts/theme-init';
-import { buildCsp, isPrivatePath, securityHeaders } from '../../src/lib/security-headers';
+import { buildCsp, isPrivatePath, needsWasm, securityHeaders } from '../../src/lib/security-headers';
 
 const hash = createHash('sha256').update(THEME_INIT_SCRIPT).digest('base64');
 const SUPABASE = 'https://abcd.supabase.co';
@@ -28,6 +28,18 @@ describe('security headers', () => {
     expect(buildCsp({ themeScriptHash: hash, supabaseUrl: 'https://abcd.supabase.co/rest/v1/' })).toContain(
       `connect-src 'self' https://abcd.supabase.co;`,
     );
+  });
+
+  it('allows WebAssembly (not eval) only on the admin photos page', () => {
+    const id = '0b7f3c52-6a8e-4c1e-9d2a-3f4b5c6d7e8f';
+    expect(needsWasm(`/admin/trips/${id}/photos/`)).toBe(true);
+    expect(needsWasm(`/en/admin/trips/${id}/photos/`)).toBe(true);
+    for (const p of ['/', '/trips/x/', `/admin/trips/${id}/`, '/admin/', `/admin/trips/${id}/photos/x`]) {
+      expect(needsWasm(p), p).toBe(false);
+    }
+    const csp = buildCsp({ themeScriptHash: hash, supabaseUrl: SUPABASE, allowWasm: true });
+    expect(csp).toContain(`script-src 'self' 'wasm-unsafe-eval' 'sha256-${hash}'`);
+    expect(csp.replace("'wasm-unsafe-eval'", '')).not.toContain('unsafe-eval');
   });
 
   it('sets the other required headers', () => {

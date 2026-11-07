@@ -9,7 +9,7 @@
 import type { APIContext, MiddlewareNext } from 'astro';
 import { defineMiddleware } from 'astro:middleware';
 import { THEME_INIT_SCRIPT } from './scripts/theme-init';
-import { isPrivatePath, securityHeaders } from './lib/security-headers';
+import { isPrivatePath, needsWasm, securityHeaders } from './lib/security-headers';
 import { ADMIN_MFA, ADMIN_PUBLIC, ADMIN_RE, adminLocale, adminPath } from './lib/admin/paths';
 import { supabaseServer } from './lib/supabase/server';
 
@@ -92,6 +92,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const headers = securityHeaders({
     themeScriptHash: await themeScriptHash(),
     supabaseUrl: import.meta.env.PUBLIC_SUPABASE_URL,
+    allowWasm: needsWasm(context.url.pathname),
   });
   // Some responses have immutable headers: copy them.
   const out = new Response(response.body, response);

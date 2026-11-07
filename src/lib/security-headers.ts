@@ -13,13 +13,25 @@ export interface CspOptions {
   themeScriptHash: string;
   /** Supabase project URL (images, admin uploads and auth). */
   supabaseUrl: string;
+  /**
+   * Allow compiling WebAssembly ('wasm-unsafe-eval'). Only the admin photos
+   * page needs it, for the WebP encoder used by browsers that can't write WebP.
+   * It does not allow eval() of JavaScript.
+   */
+  allowWasm?: boolean;
 }
 
-export function buildCsp({ themeScriptHash, supabaseUrl }: CspOptions): string {
+/** Admin pages that load the WebAssembly WebP encoder. */
+export function needsWasm(pathname: string): boolean {
+  return /^\/(en\/)?admin\/trips\/[0-9a-f-]{36}\/photos\/?$/.test(pathname);
+}
+
+export function buildCsp({ themeScriptHash, supabaseUrl, allowWasm = false }: CspOptions): string {
   const supabase = new URL(supabaseUrl).origin;
+  const wasm = allowWasm ? " 'wasm-unsafe-eval'" : '';
   return [
     "default-src 'self'",
-    `script-src 'self' 'sha256-${themeScriptHash}' ${TURNSTILE_ORIGIN}`,
+    `script-src 'self'${wasm} 'sha256-${themeScriptHash}' ${TURNSTILE_ORIGIN}`,
     "style-src 'self'",
     `img-src 'self' data: blob: ${supabase}`,
     "font-src 'self'",

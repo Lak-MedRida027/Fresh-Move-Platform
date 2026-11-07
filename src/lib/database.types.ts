@@ -183,6 +183,9 @@ isOneToOne: false
 "admin_promote":
 { Args: { "p_reservation_id"?: string,"p_trip_id": string }; Returns: Json
                            },
+"admin_reorder_images":
+{ Args: { "p_ids": (string)[],"p_trip_id": string }; Returns: Json
+                           },
 "admin_role":
 { Args: Record<PropertyKey, never>; Returns: string
                            },

@@ -218,3 +218,21 @@ An automated review flagged three weaknesses; all fixed with tests in `tests/api
   to delete the last owner (the "keep one owner" rule). The fixtures now create the new accounts first
   (fresh addresses each run), then delete the old ones, and fail loudly if a delete fails.
 - **Known, for phase 6:** deleting a trip doesn't yet delete its photos from storage.
+
+## Phase 6: photos
+
+- **The new path rule failed to apply locally:** two `trip_images` rows left by a DB test used dummy
+  paths (`'a'`, `'b'`, `'c'`). The test now builds real paths; the leftovers were local test data only.
+- **A DB test insert failed with "null value in alt_ar".** supabase-js sends a batch insert with the union
+  of all rows' keys, so a key missing from one row becomes `null` (not the column default). The test
+  rows now have the same keys.
+- **Old e2e trips left their photo files in storage.** The fixtures deleted the rows but never the files
+  under `trips/<id>/`. They now remove the folder too, the same way the admin's trip delete does.
+- **WebP on iPhones.** Playwright's WebKit can write WebP from a canvas, but Safari has not always been
+  able to (it silently returns PNG). The pipeline checks what it actually got and falls back to a
+  WebAssembly encoder (admin photos page only; the CSP allows `'wasm-unsafe-eval'` on that page alone).
+  The fallback is tested by forcing `toBlob` to ignore WebP.
+- **"Choose Files" in English on the Darja page.** The browser's file button uses the browser's language.
+  It's now a styled label with our own text; the real input stays focusable and labelled.
+- **Known, later:** the copy review (`docs/COPY_REVIEW.md`) covers the public site, not the admin
+  strings yet (phase 10).

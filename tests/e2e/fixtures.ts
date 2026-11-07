@@ -102,6 +102,37 @@ async function setupAdmins(db: ReturnType<typeof localDb>): Promise<void> {
   writeFileSync(ADMIN_FILE, JSON.stringify(out, null, 2));
 }
 
+async function removeFolder(db: ReturnType<typeof localDb>, folder: string): Promise<void> {
+  const { data } = await db.storage.from('trip-images').list(folder, { limit: 1000 });
+  if (data?.length) await db.storage.from('trip-images').remove(data.map((o) => `${folder}/${o.name}`));
+}
+
+/** Photos for the admin upload test (see tests/e2e/admin-photos.spec.ts). */
+export const PHOTO_DIR = '.playwright/photos';
+export const PHOTOS = {
+  /** 1200×800 JPEG with GPS and camera EXIF, rotated 90° by its EXIF orientation (shows as 800×1200). */
+  gps: `${PHOTO_DIR}/gps-rotated.jpg`,
+  /** 2400×1600 PNG: resized to 1600 / 960 / 480 on the long side. */
+  wide: `${PHOTO_DIR}/wide.png`,
+  /** 200×150: rejected as too small. */
+  tiny: `${PHOTO_DIR}/tiny.png`,
+};
+
+async function writeTestPhotos(): Promise<void> {
+  mkdirSync(PHOTO_DIR, { recursive: true });
+  const solid = (width: number, height: number) => sharp({ create: { width, height, channels: 3, background: '#6b7a2e' } });
+  await solid(1200, 800)
+    .jpeg({ quality: 85 })
+    .withExif({
+      IFD0: { Make: 'TestCam', Model: 'E2E', Copyright: 'Fresh Move e2e' },
+      IFD3: { GPSLatitudeRef: 'N', GPSLatitude: '36/1 45/1 0/1', GPSLongitudeRef: 'E', GPSLongitude: '3/1 3/1 0/1' },
+    })
+    .withMetadata({ orientation: 6 })
+    .toFile(PHOTOS.gps);
+  await solid(2400, 1600).png().toFile(PHOTOS.wide);
+  await solid(200, 150).png().toFile(PHOTOS.tiny);
+}
+
 const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
 
 export async function setupFixtures(): Promise<void> {
@@ -114,7 +145,9 @@ export async function setupFixtures(): Promise<void> {
     await db.from('trips').update({ cover_image_id: null }).in('id', ids);
     await db.from('trip_images').delete().in('trip_id', ids);
     await db.from('trips').delete().in('id', ids);
+    for (const id of ids) await removeFolder(db, `trips/${id}`);
   }
+  await writeTestPhotos();
   await db.from('members').delete().like('full_name', 'Zz %');
   // Fresh rate-limit counters so repeated local runs don't trip the per-phone / per-code limits.
   await db.from('rate_limits').delete().gte('hits', 0);

@@ -2,7 +2,8 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { totp } from '../totp';
-import { E2E, localDb, readAdmins } from './fixtures';
+import sharp from 'sharp';
+import { E2E, localDb, PHOTOS, readAdmins } from './fixtures';
 
 type Who = 'owner' | 'organizer';
 
@@ -56,7 +57,7 @@ test.describe('admin access control', () => {
   });
 
   test('every admin API returns 401 when signed out', async ({ request }) => {
-    for (const api of ['reservations', 'trips', 'members', 'admins', 'settings']) {
+    for (const api of ['reservations', 'trips', 'members', 'admins', 'settings', 'photos']) {
       const res = await request.post(`/admin/api/${api}/`, { form: { action: 'delete', id: 'x' }, maxRedirects: 0 });
       expect(res.status(), api).toBe(401);
     }
@@ -214,6 +215,176 @@ test.describe('admin flows', () => {
     expect(res.headers().location).toContain('error=owner_only');
   });
 
+  test('photos: browser resize strips EXIF/GPS, alt text gates publishing, cover, order, delete', async ({ page }, info) => {
+    test.setTimeout(120_000);
+    const db = localDb();
+    const { data: trip, error } = await db
+      .from('trips')
+      .insert({
+        slug: `admin-e2e-photos-${info.project.name}-${Date.now()}`,
+        title_ar: 'خرجة الصور',
+        title_en: `Admin E2E Photos ${info.project.name}`,
+        region: 'aures',
+        terrain: ['mountain'],
+        start_date: '2026-10-01',
+        end_date: '2026-10-02',
+        status: 'draft',
+      })
+      .select('id, slug')
+      .single();
+    if (error) throw error;
+    await signIn(page, info, 'owner', '/en');
+    const photosUrl = `/en/admin/trips/${trip.id}/photos/`;
+    await page.goto(photosUrl);
+    await expect(page.locator('.photo-card')).toHaveCount(0);
+
+    // Upload three files: two good ones and one that is too small.
+    await page.locator('input[name="upload-kind"][value="gallery"]').check();
+    await page.locator('[data-files]').setInputFiles([PHOTOS.gps, PHOTOS.wide, PHOTOS.tiny]);
+    const items = page.locator('.upload-item');
+    await expect(items.nth(2)).toHaveAttribute('data-state', 'error', { timeout: 60_000 });
+    await expect(items.nth(0)).toHaveAttribute('data-state', 'done');
+    await expect(items.nth(1)).toHaveAttribute('data-state', 'done');
+    await expect(items.nth(2)).toContainText('too small');
+
+    // What is in the database and in storage.
+    const { data: rows } = await db.from('trip_images').select('*').eq('trip_id', trip.id).order('sort_order');
+    expect(rows).toHaveLength(2);
+    const [gps, wide] = rows!;
+    const expected = {
+      // EXIF orientation applied: the 1200×800 photo is upright (portrait).
+      [gps!.id]: { lg: [800, 1200], md: [640, 960], sm: [320, 480] },
+      [wide!.id]: { lg: [1600, 1067], md: [960, 640], sm: [480, 320] },
+    };
+    for (const row of rows!) {
+      expect(row.kind).toBe('gallery');
+      expect(row.placeholder).toMatch(/^data:image\/webp;base64,/);
+      expect([row.width, row.height]).toEqual(expected[row.id]!.lg);
+      let total = 0;
+      for (const size of ['sm', 'md', 'lg'] as const) {
+        const { data: blob, error: dlError } = await db.storage.from('trip-images').download(row[`path_${size}`]);
+        if (dlError) throw dlError;
+        const buf = Buffer.from(await blob.arrayBuffer());
+        total += buf.length;
+        expect(buf.subarray(0, 4).toString('latin1'), size).toBe('RIFF');
+        expect(buf.subarray(8, 12).toString('latin1'), size).toBe('WEBP');
+        const meta = await sharp(buf).metadata();
+        expect([meta.width, meta.height], `${row.id} ${size}`).toEqual(expected[row.id]![size]);
+        // No metadata survived: no EXIF/XMP chunk, no camera or GPS data.
+        expect(meta.exif, size).toBeUndefined();
+        expect(meta.xmp, size).toBeUndefined();
+        expect(buf.includes(Buffer.from('EXIF')) || buf.includes(Buffer.from('TestCam')), size).toBe(false);
+      }
+      expect(row.size_bytes).toBe(total);
+    }
+
+    // Publishing is blocked until every photo has alt text in both languages.
+    await page.goto(photosUrl);
+    await expect(page.locator('.photo-card')).toHaveCount(2);
+    await expect(page.locator('[data-missing-alt]')).toBeVisible();
+    await page.goto(`/en/admin/trips/${trip.id}/`);
+    await page.locator('#tf-status').selectOption('completed');
+    await page.locator('[data-save-trip]').click();
+    await expect(page.locator('[data-flash="error"]')).toContainText('description in Darja and English');
+
+    await page.goto(photosUrl);
+    for (const [i, row] of rows!.entries()) {
+      const card = page.locator(`[data-photo="${row.id}"]`);
+      await card.locator('textarea[name="alt_ar"]').fill(`صورة ${i + 1} من الخرجة`);
+      await card.locator('textarea[name="alt_en"]').fill(`Trip photo ${i + 1}`);
+      await card.locator('[data-photo-form] button[type="submit"]').click();
+      await expect(page.locator('[data-flash="ok"]')).toHaveText('Saved ✓');
+    }
+    await expect(page.locator('[data-missing-alt]')).toHaveCount(0);
+
+    // Cover and order.
+    await page.locator(`[data-photo="${wide!.id}"]`).getByRole('button', { name: 'Use as cover' }).click();
+    await expect(page.locator(`[data-photo="${wide!.id}"] [data-cover]`)).toBeVisible();
+    await page.locator(`[data-photo="${wide!.id}"] [data-move="up"]`).click();
+    await expect(page.locator('[data-flash="ok"]')).toHaveText('Order saved ✓');
+    await expect(page.locator('.photo-card').first()).toHaveAttribute('data-photo', wide!.id);
+    const { data: t2 } = await db.from('trips').select('cover_image_id').eq('id', trip.id).single();
+    expect(t2!.cover_image_id).toBe(wide!.id);
+
+    // Now it publishes, and the public page shows the photos with their alt text.
+    await page.goto(`/en/admin/trips/${trip.id}/`);
+    await page.locator('#tf-status').selectOption('completed');
+    await page.locator('[data-save-trip]').click();
+    await expect(page.locator('[data-flash="ok"]')).toBeVisible();
+    await page.goto(`/trips/${trip.slug}/`);
+    await expect(page.locator('img[alt="صورة 1 من الخرجة"]').first()).toBeAttached();
+
+    // Delete a photo: row and all three files go.
+    await page.goto(photosUrl);
+    const card = page.locator(`[data-photo="${gps!.id}"]`);
+    await card.locator('.action-menu summary').click();
+    await card.locator('[data-delete-photo]').click();
+    await expect(page.locator('[data-flash="ok"]')).toHaveText('Deleted ✓');
+    await expect(page.locator('.photo-card')).toHaveCount(1);
+    const listing = async () => (await db.storage.from('trip-images').list(`trips/${trip.id}`)).data?.map((o) => o.name) ?? [];
+    expect((await listing()).filter((n) => n.startsWith(gps!.id))).toEqual([]);
+    expect(await listing()).toHaveLength(3);
+
+    // Delete the trip (owner): its remaining files go too.
+    await page.goto(`/en/admin/trips/${trip.id}/`);
+    await page.locator('form:has(input[name="action"][value="delete"]) button[type="submit"]').click();
+    await expect(page.locator('[data-flash="ok"]')).toHaveText('Deleted ✓');
+    expect(await listing()).toEqual([]);
+  });
+
+  test('photos: browsers without a WebP canvas encoder use the WebAssembly one', async ({ page }, info) => {
+    test.skip(info.project.name !== 'desktop-chrome', 'one browser is enough: the fallback is forced');
+    const db = localDb();
+    const { data: trip, error } = await db
+      .from('trips')
+      .insert({ slug: `admin-e2e-wasm-${Date.now()}`, title_ar: 'خرجة', title_en: 'Admin E2E WASM', region: 'aures', terrain: ['mountain'], status: 'draft' })
+      .select('id')
+      .single();
+    if (error) throw error;
+    // Make canvas.toBlob ignore WebP, like browsers that can't encode it.
+    await page.addInitScript(() => {
+      const original = HTMLCanvasElement.prototype.toBlob;
+      HTMLCanvasElement.prototype.toBlob = function (cb: BlobCallback, type?: string, q?: number) {
+        return original.call(this, cb, type === 'image/webp' ? 'image/png' : type, q);
+      };
+    });
+    const wasm: string[] = [];
+    page.on('request', (r) => r.url().endsWith('.wasm') && wasm.push(r.url()));
+    await signIn(page, info, 'owner', '/en');
+    await page.goto(`/en/admin/trips/${trip.id}/photos/`);
+    await page.locator('[data-files]').setInputFiles([PHOTOS.wide]);
+    await expect(page).toHaveURL(/ok=uploaded/, { timeout: 60_000 });
+    expect(wasm.length).toBeGreaterThan(0);
+    const { data: row } = await db.from('trip_images').select('path_lg').eq('trip_id', trip.id).single();
+    const { data: blob } = await db.storage.from('trip-images').download(row!.path_lg);
+    const buf = Buffer.from(await blob!.arrayBuffer());
+    expect(buf.subarray(8, 12).toString('latin1')).toBe('WEBP');
+    expect((await sharp(buf).metadata()).width).toBe(1600);
+  });
+
+  test('photos API: same-origin only, and storage is checked before a photo is added', async ({ page }, info) => {
+    test.skip(info.project.name !== 'desktop-chrome', 'API checks, one browser is enough');
+    const { data: trip } = await localDb().from('trips').select('id').eq('slug', E2E.open).single();
+    await signIn(page, info, 'owner');
+    const post = (data: object, origin?: string) =>
+      page.request.post('/admin/api/photos/', { data, headers: origin ? { Origin: origin } : {}, maxRedirects: 0 });
+    const origin = new URL(page.url()).origin;
+    expect((await post({ action: 'prepare', trip_id: trip!.id, kind: 'gallery' })).status()).toBe(403);
+    expect((await post({ action: 'prepare', trip_id: trip!.id, kind: 'gallery' }, 'https://evil.example')).status()).toBe(403);
+    const prep = await post({ action: 'prepare', trip_id: trip!.id, kind: 'gallery' }, origin);
+    expect(prep.status()).toBe(200);
+    const { id, uploads } = (await prep.json()) as { id: string; uploads: Record<string, string> };
+    expect(Object.keys(uploads).sort()).toEqual(['lg', 'md', 'sm']);
+    // Register without uploading anything: refused, nothing added.
+    const reg = await post(
+      { action: 'register', trip_id: trip!.id, id, kind: 'gallery', width: 1600, height: 1067, placeholder: 'data:image/webp;base64,AAAA' },
+      origin,
+    );
+    expect(await reg.json()).toEqual({ ok: false, error: 'upload_incomplete' });
+    const { data: row } = await localDb().from('trip_images').select('id').eq('id', id).maybeSingle();
+    expect(row).toBeNull();
+  });
+
   test('language switch keeps the admin page', async ({ page }, info) => {
     await signIn(page, info, 'organizer');
     await page.goto('/admin/reservations/');
@@ -233,6 +404,7 @@ test.describe('admin flows', () => {
       ...ADMIN_PAGES,
       `/admin/trips/${trip!.id}/`,
       `/admin/trips/${trip!.id}/reservations/`,
+      `/admin/trips/${trip!.id}/photos/`,
       `/admin/members/${member!.id}/`,
     ];
     for (const theme of ['dark', 'light'] as const) {

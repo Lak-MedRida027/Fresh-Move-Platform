@@ -7,6 +7,7 @@ import type { APIRoute } from 'astro';
 import { backTo, dbErrorCode, fail, formLocale, notAllowed, ok, readForm, redirect, str } from '../../../lib/admin/forms';
 import { adminPath, withFlash } from '../../../lib/admin/paths';
 import { purgeTrips } from '../../../lib/admin/purge';
+import { removeTripFiles } from '../../../lib/admin/storage';
 import { parseTripForm, slugify, TRIP_STATUSES } from '../../../lib/admin/trip-form';
 import type { AdminClient } from '../../../lib/supabase/server';
 
@@ -79,6 +80,8 @@ export const POST: APIRoute = async (context) => {
     const { data, error } = await sb.from('trips').delete().eq('id', id).select('id');
     if (error) return fail(back, error.code === '23503' ? 'invalid_status' : dbErrorCode(error));
     if (!data?.length) return fail(back, 'not_found');
+    // The rows of its photos went with the trip (cascade); now their files.
+    await removeTripFiles(sb, id);
     await purgeTrips(context);
     return redirect(withFlash(adminPath(locale, '/trips/'), 'ok', 'deleted'));
   }

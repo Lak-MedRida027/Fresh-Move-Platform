@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { anon, denied, makeTrip, makeUser, phone, reserve, reserveArgs, service, type DB, type TestUser } from './helpers';
 
@@ -176,12 +177,57 @@ describe('RLS: admins', () => {
 
   it('publishing requires alt text on every image', async () => {
     const trip = await makeTrip({ status: 'draft' });
-    await service.from('trip_images').insert({
-      trip_id: trip.id, kind: 'poster', path_sm: 'a', path_md: 'b', path_lg: 'c', width: 1080, height: 1350,
-    });
+    expect((await service.from('trip_images').insert(image(trip.id))).error).toBeNull();
     const res = await organizer.client.from('trips').update({ status: 'open' }).eq('id', trip.id);
     expect(res.error?.message).toBe('missing_alt_text');
     await service.from('trip_images').update({ alt_ar: 'بوستر', alt_en: 'Poster' }).eq('trip_id', trip.id);
     expect((await organizer.client.from('trips').update({ status: 'open' }).eq('id', trip.id)).error).toBeNull();
   });
+
+  it('closing a trip also requires alt text (closed trips are public)', async () => {
+    const trip = await makeTrip({ status: 'draft' });
+    await service.from('trip_images').insert(image(trip.id));
+    const res = await organizer.client.from('trips').update({ status: 'closed' }).eq('id', trip.id);
+    expect(res.error?.message).toBe('missing_alt_text');
+  });
+
+  it('photo files must live at trips/<trip>/<image>-<size>.webp', async () => {
+    const trip = await makeTrip({ status: 'draft' });
+    const bad = { ...image(trip.id), path_md: `trips/${trip.id}/other-md.webp` };
+    expect((await service.from('trip_images').insert(bad)).error?.message).toMatch(/trip_images_paths/);
+  });
+
+  it('the public never sees a photo that lacks alt text, even on a public trip', async () => {
+    const trip = await makeTrip({ status: 'open' });
+    const withAlt = { ...image(trip.id), alt_ar: 'صورة', alt_en: 'Photo' };
+    const without = { ...image(trip.id), alt_ar: '', alt_en: '' };
+    expect((await service.from('trip_images').insert([withAlt, without])).error).toBeNull();
+    const { data } = await anon().from('trip_images').select('id').eq('trip_id', trip.id);
+    expect(data?.map((r) => r.id)).toEqual([withAlt.id]);
+    const { data: adminView } = await organizer.client.from('trip_images').select('id').eq('trip_id', trip.id);
+    expect(adminView).toHaveLength(2);
+  });
+
+  it('admins reorder photos in one call; bad lists and non-admins are refused', async () => {
+    const trip = await makeTrip({ status: 'draft' });
+    const imgs = [image(trip.id), image(trip.id), image(trip.id)];
+    await service.from('trip_images').insert(imgs);
+    const order = [imgs[2]!.id, imgs[0]!.id, imgs[1]!.id];
+    expect((await organizer.client.rpc('admin_reorder_images', { p_trip_id: trip.id, p_ids: order })).error).toBeNull();
+    const { data } = await service.from('trip_images').select('id').eq('trip_id', trip.id).order('sort_order');
+    expect(data?.map((r) => r.id)).toEqual(order);
+
+    const partial = await organizer.client.rpc('admin_reorder_images', { p_trip_id: trip.id, p_ids: order.slice(1) });
+    expect(partial.error?.message).toBe('invalid_input');
+    const dup = await organizer.client.rpc('admin_reorder_images', { p_trip_id: trip.id, p_ids: [order[0]!, order[0]!, order[1]!] });
+    expect(dup.error?.message).toBe('invalid_input');
+    expect(denied(await noMfa.client.rpc('admin_reorder_images', { p_trip_id: trip.id, p_ids: order }))).toBe(true);
+    expect(denied(await anon().rpc('admin_reorder_images', { p_trip_id: trip.id, p_ids: order }))).toBe(true);
+  });
 });
+
+function image(tripId: string) {
+  const id = randomUUID();
+  const path = (size: string) => `trips/${tripId}/${id}-${size}.webp`;
+  return { id, trip_id: tripId, kind: 'poster' as const, path_sm: path('sm'), path_md: path('md'), path_lg: path('lg'), width: 1080, height: 1350 };
+}
