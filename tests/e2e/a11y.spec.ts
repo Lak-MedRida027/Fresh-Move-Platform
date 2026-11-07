@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-const PAGES = ['/', '/trips/', '/trips/chelia-summit/', '/join/', '/privacy/', '/404/'];
+const PAGES = ['/', '/trips/', '/trips/chelia-summit/', '/trips/e2e-open-trip/', '/trips/e2e-full-trip/', '/reservation/', '/join/', '/privacy/', '/404/'];
 const LANGS = [
   ['ar', ''],
   ['en', '/en'],

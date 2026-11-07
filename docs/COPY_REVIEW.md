@@ -7,6 +7,106 @@ in `src/i18n/ar.json` (or the trip file / regions file for place names), then ru
 **TODO(owner): review all Darja copy.** Look for: words that don't sound like the Instagram page, anything too
 formal (MSA) or too "tourism agency", and wrong spellings of place names.
 
+## New or changed in v2 (reservations), review these first
+
+TODO(owner): review. The "How it works" steps, FAQ answer 3, footer and privacy texts changed because trips are now booked on the site.
+
+| Key | Darja | English |
+|---|---|---|
+| `meta.reservation.title` | حالة الحجز \| Fresh Move | Check my reservation \| Fresh Move |
+| `meta.reservation.description` | شوف حالة الحجز تاعك برقم التيليفون والكود. | Check your booking status with your phone number and code. |
+| `nav.reservation` | حجزي | My booking |
+| `upcoming.eyebrow` | الخرجات الجاية | Upcoming trips |
+| `upcoming.title` | حجز بلاصتك قبل ما تكمل | Grab your seat before it's gone |
+| `upcoming.empty` | ما كاين حتى خرجة مفتوحة دروك. تابعنا في Instagram باش تعرف الخرجة الجاية أول واحد. | No trips are open right now. Follow us on Instagram to hear about the next one first. |
+| `seats.one` | باقي بلاصة وحدة | 1 seat left |
+| `seats.left` | باقي {count} بلايص | {count} seats left |
+| `seats.almostFull` | قريب تكمل | Almost full |
+| `seats.full` | كاملة: سجّل في قائمة الانتظار | Full: join the waitlist |
+| `seats.closed` | التسجيل مسكّر | Registrations closed |
+| `difficulty.label` | المستوى | Level |
+| `difficulty.easy` | ساهلة | Easy |
+| `difficulty.medium` | متوسطة | Medium |
+| `difficulty.hard` | صعيبة | Hard |
+| `price.da` | {price} دج | {price} DA |
+| `how.eyebrow` | كيفاش تجي معانا | How it works |
+| `how.title` | كيفاش تحجز في أربع خطوات | Book in four steps |
+| `how.step1.title` | حجز بلاصتك في السيت | Reserve your seat on the site |
+| `how.step1.text` | اختار الخرجة وعمّر الفورمولار. تاخذ كود حجز. | Pick a trip and fill in the form. You get a reservation code. |
+| `how.step2.title` | خلّص قبل ما يفوت الوقت | Pay before your hold expires |
+| `how.step2.text` | BaridiMob، CCP ولا cash، كيما مكتوب في صفحة الخرجة. | BaridiMob, CCP or cash, as explained on the trip page. |
+| `how.step3.title` | بعث الوصل في Instagram | Send the proof on Instagram |
+| `how.step3.text` | بعثلنا صورة الوصل ومعاها الكود تاعك في DM. | DM us a photo of the receipt with your code. |
+| `how.step4.title` | نأكدولك البلاصة | We confirm your seat |
+| `how.step4.text` | كي نشوفو الخلاص، البلاصة تولّي تاعك. تقدر تشوف الحالة في السيت. | Once we see the payment, the seat is yours. You can check the status on the site. |
+| `how.note` | الخرجات تتعلن في Instagram وتتحجز هنا في السيت. خلّص غير بالطرق المكتوبة في صفحة الخرجة. | Trips are announced on Instagram and booked here on the site. Only pay using the methods listed on the trip page. |
+| `how.ctaFollow` | تابعنا | Follow us |
+| `how.ctaDm` | بعثلنا DM | DM us |
+| `faq.a3` | اختار الخرجة في السيت، عمّر الفورمولار وتاخذ كود. خلّص قبل ما يفوت الوقت وبعثلنا الوصل مع الكود في Instagram DM. | Pick the trip on the site, fill in the form and you'll get a code. Pay before your hold expires, then DM us the receipt with your code on Instagram. |
+| `trips.upcoming` | الخرجات الجاية | Upcoming trips |
+| `trips.past` | خرجات فاتت | Past trips |
+| `trip.price` | السومة | Price |
+| `trip.dates` | التواريخ | Dates |
+| `trip.meeting` | نقطة اللقاء | Meeting point |
+| `trip.meetingTime` | الساعة | Time |
+| `trip.deadline` | آخر أجل للتسجيل | Registration deadline |
+| `trip.deadlineLeft` | باقي {days} يوم و {hours} ساعة | {days} d {hours} h left |
+| `trip.deadlineSoon` | باقي {hours} ساعة و {minutes} دقيقة | {hours} h {minutes} min left |
+| `trip.description` | على الخرجة | About this trip |
+| `trip.bring` | واش تجيب معاك | What to bring |
+| `trip.payment` | كيفاش تخلّص | How to pay |
+| `trip.paymentNote` | عندك {hours} ساعة باش تخلّص بعد الحجز، وإلا البلاصة تروح لواحد آخر. | You have {hours} hours after booking to pay, otherwise the seat goes to someone else. |
+| `reserve.title` | حجز بلاصتك | Reserve your seat |
+| `reserve.titleWaitlist` | سجّل في قائمة الانتظار | Join the waitlist |
+| `reserve.intro` | عمّر المعلومات تاعك. نحفظولك البلاصة {hours} ساعة باش تخلّص. | Fill in your details. We hold your seat for {hours} hours while you pay. |
+| `reserve.introWaitlist` | الخرجة كاملة، بصح تقدر تسجّل في قائمة الانتظار. إذا تحررت بلاصة، نتواصلو مع الناس بالترتيب. | This trip is full, but you can join the waitlist. If a seat frees up, we contact people in order. |
+| `reserve.submit` | حجز بلاصتي | Reserve my seat |
+| `reserve.submitWaitlist` | سجّلني في قائمة الانتظار | Join the waitlist |
+| `reserve.consent` | نوافق باللي Fresh Move تحفظ المعلومات تاعي باش تسيّر الحجز وتتواصل معايا. | I agree that Fresh Move stores my info to manage my booking and contact me. |
+| `reserve.closedTitle` | التسجيل مسكّر | Registrations closed |
+| `reserve.closedText` | التسجيل لهاد الخرجة تسكّر. تابعنا في Instagram باش ما تفوّتش الجاية. | Registrations for this trip are closed. Follow us on Instagram so you don't miss the next one. |
+| `reserve.error.closed` | التسجيل لهاد الخرجة تسكّر قبل ما يوصل الحجز تاعك. | Registrations for this trip closed before your booking went through. |
+| `reserve.error.tooMany` | عندك بزاف الحجوزات اللي مازال ما خلّصتهمش. خلّص ولا ألغي واحد قبل. | You already have several unpaid bookings. Pay for or cancel one first. |
+| `reserve.success.pendingTitle` | البلاصة تاعك محجوزة! 🍀 | Your seat is held! 🍀 |
+| `reserve.success.waitlistTitle` | راك في قائمة الانتظار | You're on the waitlist |
+| `reserve.success.confirmedTitle` | البلاصة تاعك مأكدة | Your seat is confirmed |
+| `reserve.success.existing` | عندك حجز من قبل لهاد الخرجة، هاهو. | You already have a booking for this trip. Here it is. |
+| `reserve.success.code` | كود الحجز تاعك | Your reservation code |
+| `reserve.success.copy` | انسخ الكود | Copy code |
+| `reserve.success.copied` | تنسخ ✓ | Copied ✓ |
+| `reserve.success.holdUntil` | خلّص قبل: {date} (توقيت الجزائر) | Pay before: {date} (Algeria time) |
+| `reserve.success.next` | واش تدير دروك | What to do now |
+| `reserve.success.step1` | خلّص كيما مكتوب تحت. | Pay as explained below. |
+| `reserve.success.step2` | بعثلنا صورة الوصل في Instagram DM ومعاها الكود تاعك. | Send us a photo of the receipt by Instagram DM, with your code. |
+| `reserve.success.step3` | نأكدولك البلاصة. | We confirm your seat. |
+| `reserve.success.dm` | بعث الوصل في Instagram | Send proof on Instagram |
+| `reserve.success.waitlistText` | إذا تحررت بلاصة، نتواصلو معاك في Instagram ولا WhatsApp بالترتيب. خلّي الكود تاعك. | If a seat frees up, we'll contact you on Instagram or WhatsApp, in order. Keep your code. |
+| `reserve.success.check` | شوف حالة الحجز | Check my reservation |
+| `status.pending` | محجوزة: لازم تخلّص | Held: payment needed |
+| `status.confirmed` | مأكدة ✓ | Confirmed ✓ |
+| `status.waitlist` | في قائمة الانتظار | On the waitlist |
+| `status.cancelled` | ملغية | Cancelled |
+| `status.expired` | فات الوقت (ما تخلّصتش) | Expired (not paid in time) |
+| `reservation.title` | شوف حالة الحجز تاعك | Check my reservation |
+| `reservation.intro` | اكتب رقم التيليفون والكود اللي جاك كي حجزت. | Enter the phone number and the code you got when you booked. |
+| `reservation.code.label` | كود الحجز | Reservation code |
+| `reservation.code.hint` | مثال: FM-7K3QX | e.g. FM-7K3QX |
+| `reservation.submit` | شوف الحالة | Check status |
+| `reservation.notFound` | ما لقيناش حجز بهاد الرقم وهاد الكود. تأكد منهم وعاود. | We couldn't find a booking with this phone and code. Check them and try again. |
+| `reservation.trip` | الخرجة | Trip |
+| `reservation.status` | الحالة | Status |
+| `reservation.holdUntil` | خلّص قبل | Pay before |
+| `form.error.code.invalid` | الكود ماشي صحيح. لازم يكون كيما FM-7K3QX. | That code doesn't look right. It looks like FM-7K3QX. |
+| `form.failure.captcha` | ما قدرناش نتأكدو باللي راك إنسان. عاود جرّب، ولا بعثلنا DM في Instagram. | We couldn't confirm you're human. Please try again, or DM us on Instagram. |
+| `form.turnstileLabel` | تحقق الحماية من الروبوهات | Bot protection check |
+| `privacy.what.text` | كي تسجّل ولا تحجز: الاسم واللقب، رقم التيليفون ولا واتساب، الولاية، العمر، واللغة. للحجوزات زيد: الخرجة، كود الحجز، الحالة تاعو (محجوز، مأكد، انتظار)، وطريقة الخلاص والمبلغ. | When you sign up or book: your full name, phone or WhatsApp number, wilaya, age and language. For bookings also: the trip, your reservation code, its status (held, confirmed, waitlist), and the payment method and amount. |
+| `privacy.why.text` | باش نسيّرو العضوية والحجوزات ونتواصلو معاك على الخرجات. ما نبيعوهاش وما نعطيوهاش لحتى واحد. | To manage memberships and bookings and to contact you about trips. We never sell it or share it with anyone. |
+| `privacy.who.text` | غير المسؤولين على النادي. المعلومات محطوطة في قاعدة بيانات محمية عند Supabase (أوروبا)، والسيت يخدم على Cloudflare. هادو يعالجو المعلومات باسمنا برك. | Only the club admins. The data is stored in a protected database at Supabase (EU), and the site runs on Cloudflare. They process it on our behalf only. |
+| `privacy.keep.text` | معلومات العضوية نخلّوها طول ما راك عضو. تفاصيل الحجوزات نقطعو الرابط بيناتها وبينك {months} شهر من بعد ما تكمل الخرجة (نخلّو غير الأرقام للإحصائيات). | Membership info: as long as you are a member. Booking details: we remove the link to you {months} months after the trip ends (only counts are kept for statistics). |
+| `footer.booking` | الخرجات تتعلن في Instagram وتتحجز هنا. | Trips are announced on Instagram and booked here. |
+
+## All strings by section
+
 ## Tagline
 
 | Key | Darja | English |
@@ -27,6 +127,8 @@ formal (MSA) or too "tourism agency", and wrong spellings of place names.
 | `meta.privacy.title` | الخصوصية \| Fresh Move | Privacy \| Fresh Move |
 | `meta.privacy.description` | واش نديرو بالمعلومات اللي تعطيهالنا في فورمولار التسجيل. | What we do with the information you give us in the membership form. |
 | `meta.notFound.title` | الصفحة ما كايناش \| Fresh Move | Page not found \| Fresh Move |
+| `meta.reservation.title` | حالة الحجز \| Fresh Move | Check my reservation \| Fresh Move |
+| `meta.reservation.description` | شوف حالة الحجز تاعك برقم التيليفون والكود. | Check your booking status with your phone number and code. |
 
 ## Screen-reader labels
 
@@ -48,6 +150,7 @@ formal (MSA) or too "tourism agency", and wrong spellings of place names.
 | `nav.how` | كيفاش تجي معانا | How it works |
 | `nav.join` | ولّي عضو | Join the club |
 | `nav.faq` | أسئلة | FAQ |
+| `nav.reservation` | حجزي | My booking |
 
 ## Theme toggle
 
@@ -128,6 +231,39 @@ formal (MSA) or too "tourism agency", and wrong spellings of place names.
 | `stats.destinations` | وجهة | destinations |
 | `stats.regions` | مناطق | regions |
 
+## upcoming
+
+| Key | Darja | English |
+|---|---|---|
+| `upcoming.eyebrow` | الخرجات الجاية | Upcoming trips |
+| `upcoming.title` | حجز بلاصتك قبل ما تكمل | Grab your seat before it's gone |
+| `upcoming.empty` | ما كاين حتى خرجة مفتوحة دروك. تابعنا في Instagram باش تعرف الخرجة الجاية أول واحد. | No trips are open right now. Follow us on Instagram to hear about the next one first. |
+
+## seats
+
+| Key | Darja | English |
+|---|---|---|
+| `seats.one` | باقي بلاصة وحدة | 1 seat left |
+| `seats.left` | باقي {count} بلايص | {count} seats left |
+| `seats.almostFull` | قريب تكمل | Almost full |
+| `seats.full` | كاملة: سجّل في قائمة الانتظار | Full: join the waitlist |
+| `seats.closed` | التسجيل مسكّر | Registrations closed |
+
+## difficulty
+
+| Key | Darja | English |
+|---|---|---|
+| `difficulty.label` | المستوى | Level |
+| `difficulty.easy` | ساهلة | Easy |
+| `difficulty.medium` | متوسطة | Medium |
+| `difficulty.hard` | صعيبة | Hard |
+
+## price
+
+| Key | Darja | English |
+|---|---|---|
+| `price.da` | {price} دج | {price} DA |
+
 ## Home: where we've been
 
 | Key | Darja | English |
@@ -150,16 +286,16 @@ formal (MSA) or too "tourism agency", and wrong spellings of place names.
 | Key | Darja | English |
 |---|---|---|
 | `how.eyebrow` | كيفاش تجي معانا | How it works |
-| `how.title` | أربع خطوات وراك معانا | Four steps and you're in |
-| `how.step1.title` | سجّل كعضو | Enroll as a member |
-| `how.step1.text` | عمّر الفورمولار في هاد السيت باش تولّي عضو في النادي. | Fill in the form on this site to become a club member. |
-| `how.step2.title` | تابعنا على Instagram | Follow us on Instagram |
-| `how.step2.text` | تابع @fresh_move1 باش ما يفوتك والو. | Follow @fresh_move1 so you never miss a move. |
-| `how.step3.title` | الخرجات تتعلن في Instagram | Trips are announced on Instagram |
-| `how.step3.text` | كل خرجة تتعلن مع التاريخ والسومة. | Every trip is posted with its dates and price. |
-| `how.step4.title` | بعثلنا DM باش تحجز بلاصتك | DM us to book your seat |
-| `how.step4.text` | الحجز يكون غير في الميساجات تاع Instagram. | Bookings happen only in our Instagram DMs. |
-| `how.note` | مهم: هاد السيت ما يحجزش الخرجات وما يخلّصش. الحجز غير في Instagram. | Important: this site never books trips or takes payments. Booking happens on Instagram only. |
+| `how.title` | كيفاش تحجز في أربع خطوات | Book in four steps |
+| `how.step1.title` | حجز بلاصتك في السيت | Reserve your seat on the site |
+| `how.step1.text` | اختار الخرجة وعمّر الفورمولار. تاخذ كود حجز. | Pick a trip and fill in the form. You get a reservation code. |
+| `how.step2.title` | خلّص قبل ما يفوت الوقت | Pay before your hold expires |
+| `how.step2.text` | BaridiMob، CCP ولا cash، كيما مكتوب في صفحة الخرجة. | BaridiMob, CCP or cash, as explained on the trip page. |
+| `how.step3.title` | بعث الوصل في Instagram | Send the proof on Instagram |
+| `how.step3.text` | بعثلنا صورة الوصل ومعاها الكود تاعك في DM. | DM us a photo of the receipt with your code. |
+| `how.step4.title` | نأكدولك البلاصة | We confirm your seat |
+| `how.step4.text` | كي نشوفو الخلاص، البلاصة تولّي تاعك. تقدر تشوف الحالة في السيت. | Once we see the payment, the seat is yours. You can check the status on the site. |
+| `how.note` | الخرجات تتعلن في Instagram وتتحجز هنا في السيت. خلّص غير بالطرق المكتوبة في صفحة الخرجة. | Trips are announced on Instagram and booked here on the site. Only pay using the methods listed on the trip page. |
 | `how.ctaFollow` | تابعنا | Follow us |
 | `how.ctaDm` | بعثلنا DM | DM us |
 
@@ -174,7 +310,7 @@ formal (MSA) or too "tourism agency", and wrong spellings of place names.
 | `faq.q2` | لازم تكون عندي experience؟ | Do I need experience? |
 | `faq.a2` | لا. كاين خرجات ساهلة وكاين اللي تعيّي شوية. قبل ما تحجز، سقسينا في DM على المستوى. | No. Some trips are easy and some are tougher. Before you book, ask us in a DM how hard it is. |
 | `faq.q3` | كيفاش نحجز في خرجة؟ | How do I book a trip? |
-| `faq.a3` | غير في Instagram: تشوف الإعلان تاع الخرجة، وتبعثلنا DM. السيت ما يحجزش. | Only on Instagram: check the trip announcement, then send us a DM. The website doesn't take bookings. |
+| `faq.a3` | اختار الخرجة في السيت، عمّر الفورمولار وتاخذ كود. خلّص قبل ما يفوت الوقت وبعثلنا الوصل مع الكود في Instagram DM. | Pick the trip on the site, fill in the form and you'll get a code. Pay before your hold expires, then DM us the receipt with your code on Instagram. |
 | `faq.q4` | العضوية بلاش؟ | Is membership free? |
 | `faq.a4` | إيه، التسجيل في النادي بلاش. كل خرجة عندها السومة تاعها، وتتعلن في Instagram. | Yes, joining the club is free. Each trip has its own price, announced on Instagram. |
 | `faq.q5` | واش نجيب معايا؟ | What should I bring? |
@@ -188,6 +324,8 @@ formal (MSA) or too "tourism agency", and wrong spellings of place names.
 |---|---|---|
 | `trips.title` | خرجاتنا | Our trips |
 | `trips.intro` | كامل الخرجات اللي عملناها، مرتّبة حسب المنطقة والنوع. الخرجات الجاية تتعلن في Instagram. | Every trip we've done, by region and terrain. Upcoming trips are announced on Instagram. |
+| `trips.upcoming` | الخرجات الجاية | Upcoming trips |
+| `trips.past` | خرجات فاتت | Past trips |
 
 ## Trip filters
 
@@ -234,6 +372,72 @@ formal (MSA) or too "tourism agency", and wrong spellings of place names.
 | `trip.instagramPost` | شوف البوست في Instagram | See the Instagram post |
 | `trip.cta.title` | حاب تجي في الجاية؟ | Want the next one? |
 | `trip.cta.text` | تابعنا وبعثلنا DM في Instagram. الحجز يكون غير تمّا. | Follow us and DM on Instagram. That's the only place to book. |
+| `trip.price` | السومة | Price |
+| `trip.dates` | التواريخ | Dates |
+| `trip.meeting` | نقطة اللقاء | Meeting point |
+| `trip.meetingTime` | الساعة | Time |
+| `trip.deadline` | آخر أجل للتسجيل | Registration deadline |
+| `trip.deadlineLeft` | باقي {days} يوم و {hours} ساعة | {days} d {hours} h left |
+| `trip.deadlineSoon` | باقي {hours} ساعة و {minutes} دقيقة | {hours} h {minutes} min left |
+| `trip.description` | على الخرجة | About this trip |
+| `trip.bring` | واش تجيب معاك | What to bring |
+| `trip.payment` | كيفاش تخلّص | How to pay |
+| `trip.paymentNote` | عندك {hours} ساعة باش تخلّص بعد الحجز، وإلا البلاصة تروح لواحد آخر. | You have {hours} hours after booking to pay, otherwise the seat goes to someone else. |
+
+## reserve
+
+| Key | Darja | English |
+|---|---|---|
+| `reserve.title` | حجز بلاصتك | Reserve your seat |
+| `reserve.titleWaitlist` | سجّل في قائمة الانتظار | Join the waitlist |
+| `reserve.intro` | عمّر المعلومات تاعك. نحفظولك البلاصة {hours} ساعة باش تخلّص. | Fill in your details. We hold your seat for {hours} hours while you pay. |
+| `reserve.introWaitlist` | الخرجة كاملة، بصح تقدر تسجّل في قائمة الانتظار. إذا تحررت بلاصة، نتواصلو مع الناس بالترتيب. | This trip is full, but you can join the waitlist. If a seat frees up, we contact people in order. |
+| `reserve.submit` | حجز بلاصتي | Reserve my seat |
+| `reserve.submitWaitlist` | سجّلني في قائمة الانتظار | Join the waitlist |
+| `reserve.consent` | نوافق باللي Fresh Move تحفظ المعلومات تاعي باش تسيّر الحجز وتتواصل معايا. | I agree that Fresh Move stores my info to manage my booking and contact me. |
+| `reserve.closedTitle` | التسجيل مسكّر | Registrations closed |
+| `reserve.closedText` | التسجيل لهاد الخرجة تسكّر. تابعنا في Instagram باش ما تفوّتش الجاية. | Registrations for this trip are closed. Follow us on Instagram so you don't miss the next one. |
+| `reserve.error.closed` | التسجيل لهاد الخرجة تسكّر قبل ما يوصل الحجز تاعك. | Registrations for this trip closed before your booking went through. |
+| `reserve.error.tooMany` | عندك بزاف الحجوزات اللي مازال ما خلّصتهمش. خلّص ولا ألغي واحد قبل. | You already have several unpaid bookings. Pay for or cancel one first. |
+| `reserve.success.pendingTitle` | البلاصة تاعك محجوزة! 🍀 | Your seat is held! 🍀 |
+| `reserve.success.waitlistTitle` | راك في قائمة الانتظار | You're on the waitlist |
+| `reserve.success.confirmedTitle` | البلاصة تاعك مأكدة | Your seat is confirmed |
+| `reserve.success.existing` | عندك حجز من قبل لهاد الخرجة، هاهو. | You already have a booking for this trip. Here it is. |
+| `reserve.success.code` | كود الحجز تاعك | Your reservation code |
+| `reserve.success.copy` | انسخ الكود | Copy code |
+| `reserve.success.copied` | تنسخ ✓ | Copied ✓ |
+| `reserve.success.holdUntil` | خلّص قبل: {date} (توقيت الجزائر) | Pay before: {date} (Algeria time) |
+| `reserve.success.next` | واش تدير دروك | What to do now |
+| `reserve.success.step1` | خلّص كيما مكتوب تحت. | Pay as explained below. |
+| `reserve.success.step2` | بعثلنا صورة الوصل في Instagram DM ومعاها الكود تاعك. | Send us a photo of the receipt by Instagram DM, with your code. |
+| `reserve.success.step3` | نأكدولك البلاصة. | We confirm your seat. |
+| `reserve.success.dm` | بعث الوصل في Instagram | Send proof on Instagram |
+| `reserve.success.waitlistText` | إذا تحررت بلاصة، نتواصلو معاك في Instagram ولا WhatsApp بالترتيب. خلّي الكود تاعك. | If a seat frees up, we'll contact you on Instagram or WhatsApp, in order. Keep your code. |
+| `reserve.success.check` | شوف حالة الحجز | Check my reservation |
+
+## status
+
+| Key | Darja | English |
+|---|---|---|
+| `status.pending` | محجوزة: لازم تخلّص | Held: payment needed |
+| `status.confirmed` | مأكدة ✓ | Confirmed ✓ |
+| `status.waitlist` | في قائمة الانتظار | On the waitlist |
+| `status.cancelled` | ملغية | Cancelled |
+| `status.expired` | فات الوقت (ما تخلّصتش) | Expired (not paid in time) |
+
+## reservation
+
+| Key | Darja | English |
+|---|---|---|
+| `reservation.title` | شوف حالة الحجز تاعك | Check my reservation |
+| `reservation.intro` | اكتب رقم التيليفون والكود اللي جاك كي حجزت. | Enter the phone number and the code you got when you booked. |
+| `reservation.code.label` | كود الحجز | Reservation code |
+| `reservation.code.hint` | مثال: FM-7K3QX | e.g. FM-7K3QX |
+| `reservation.submit` | شوف الحالة | Check status |
+| `reservation.notFound` | ما لقيناش حجز بهاد الرقم وهاد الكود. تأكد منهم وعاود. | We couldn't find a booking with this phone and code. Check them and try again. |
+| `reservation.trip` | الخرجة | Trip |
+| `reservation.status` | الحالة | Status |
+| `reservation.holdUntil` | خلّص قبل | Pay before |
 
 ## Photo viewer
 
@@ -282,6 +486,7 @@ formal (MSA) or too "tourism agency", and wrong spellings of place names.
 | `form.error.age.min` | لازم يكون عندك {minAge} سنة ولا كثر باش تسجّل. | You need to be at least {minAge} to join. |
 | `form.error.age.max` | العمر لازم يكون {maxAge} ولا أقل. | Age must be {maxAge} or under. |
 | `form.error.consent.required` | لازم توافق باش نقدرو نحفظو المعلومات تاعك. | Please tick the box so we can store your info. |
+| `form.error.code.invalid` | الكود ماشي صحيح. لازم يكون كيما FM-7K3QX. | That code doesn't look right. It looks like FM-7K3QX. |
 | `form.success.title` | مرحبا بيك في العايلة! 🍀 | Welcome to the crew! 🍀 |
 | `form.success.text` | التسجيل تاعك وصلنا. دروك تابعنا في Instagram: الخرجات تتعلن وتتحجز غير تمّا. | We've got your details. Now follow us on Instagram: that's the only place trips are announced and booked. |
 | `form.success.follow` | تابعنا في Instagram | Follow us on Instagram |
@@ -289,6 +494,8 @@ formal (MSA) or too "tourism agency", and wrong spellings of place names.
 | `form.failure.title` | ما خدمتش هاد المرة | That didn't go through |
 | `form.failure.text` | صرا مشكل وما قدرناش نسجّلوك. عاود من بعد، ولا بعثلنا DM في Instagram ونسجّلوك حنا. | Something went wrong and we couldn't save your sign-up. Try again later, or DM us on Instagram and we'll sign you up. |
 | `form.failure.rateLimited` | بعثت بزاف المرات. استنّى شوية وعاود. | Too many attempts. Wait a few minutes and try again. |
+| `form.failure.captcha` | ما قدرناش نتأكدو باللي راك إنسان. عاود جرّب، ولا بعثلنا DM في Instagram. | We couldn't confirm you're human. Please try again, or DM us on Instagram. |
+| `form.turnstileLabel` | تحقق الحماية من الروبوهات | Bot protection check |
 | `form.failure.dm` | بعثلنا DM في Instagram | DM us on Instagram |
 
 ## Privacy notice (TODO(owner): review, not legal advice)
@@ -298,13 +505,13 @@ formal (MSA) or too "tourism agency", and wrong spellings of place names.
 | `privacy.title` | الخصوصية | Privacy notice |
 | `privacy.intro` | ورقة قصيرة تفهّمك واش نديرو بالمعلومات اللي تعطيهالنا في فورمولار التسجيل. | A short note on what we do with the information you give us in the membership form. |
 | `privacy.what.title` | واش نجمعو | What we collect |
-| `privacy.what.text` | الاسم واللقب، رقم التيليفون ولا واتساب، الولاية، العمر، واللغة اللي سجّلت بيها. | Your full name, phone or WhatsApp number, wilaya, age, and the language you signed up in. |
+| `privacy.what.text` | كي تسجّل ولا تحجز: الاسم واللقب، رقم التيليفون ولا واتساب، الولاية، العمر، واللغة. للحجوزات زيد: الخرجة، كود الحجز، الحالة تاعو (محجوز، مأكد، انتظار)، وطريقة الخلاص والمبلغ. | When you sign up or book: your full name, phone or WhatsApp number, wilaya, age and language. For bookings also: the trip, your reservation code, its status (held, confirmed, waitlist), and the payment method and amount. |
 | `privacy.why.title` | علاش | Why |
-| `privacy.why.text` | باش نتواصلو معاك على النادي وعلى الخرجات. ما نبيعوهاش وما نعطيوهاش لحتى واحد. | To contact you about the club and its trips. We never sell it or share it with anyone. |
+| `privacy.why.text` | باش نسيّرو العضوية والحجوزات ونتواصلو معاك على الخرجات. ما نبيعوهاش وما نعطيوهاش لحتى واحد. | To manage memberships and bookings and to contact you about trips. We never sell it or share it with anyone. |
 | `privacy.who.title` | شكون يشوفها | Who can see it |
-| `privacy.who.text` | غير المسؤولين على النادي. المعلومات محطوطة في Google Sheet خاص بالنادي. | Only the club admins. It is stored in the club's private Google Sheet. |
+| `privacy.who.text` | غير المسؤولين على النادي. المعلومات محطوطة في قاعدة بيانات محمية عند Supabase (أوروبا)، والسيت يخدم على Cloudflare. هادو يعالجو المعلومات باسمنا برك. | Only the club admins. The data is stored in a protected database at Supabase (EU), and the site runs on Cloudflare. They process it on our behalf only. |
 | `privacy.keep.title` | قدّاش نخلّوها | How long we keep it |
-| `privacy.keep.text` | نخلّوها طول ما راك عضو. إذا حبيت تخرج من النادي، نمسحوها. | For as long as you're a member. If you leave the club, we delete it. |
+| `privacy.keep.text` | معلومات العضوية نخلّوها طول ما راك عضو. تفاصيل الحجوزات نقطعو الرابط بيناتها وبينك {months} شهر من بعد ما تكمل الخرجة (نخلّو غير الأرقام للإحصائيات). | Membership info: as long as you are a member. Booking details: we remove the link to you {months} months after the trip ends (only counts are kept for statistics). |
 | `privacy.delete.title` | كيفاش تطلب تمسحها | How to ask for deletion |
 | `privacy.delete.text` | بعثلنا ميساج في Instagram على @fresh_move1 وقولنا "امسحو المعلومات تاعي". نمسحوها في أقرب وقت. | Send us a DM on Instagram at @fresh_move1 saying "please delete my info". We'll remove it as soon as we can. |
 | `privacy.law` | هاد الصفحة تتبع القانون الجزائري رقم 18-07 المتعلق بحماية الأشخاص الطبيعيين في مجال معالجة المعطيات ذات الطابع الشخصي. عندك الحق تشوف المعلومات تاعك، تصحّحها ولا تطلب مسحها. | This notice follows Algerian Law No. 18-07 on the protection of individuals in the processing of personal data. You have the right to see, correct or delete your information. |
@@ -329,9 +536,9 @@ formal (MSA) or too "tourism agency", and wrong spellings of place names.
 | `footer.privacy` | الخصوصية | Privacy |
 | `footer.rights` | كل الحقوق محفوظة. | All rights reserved. |
 | `footer.pillars` | سفر · طبيعة · تاريخ · مغامرة | Travel · Nature · History · Adventure |
-| `footer.booking` | الخرجات تتحجز غير في Instagram. | Trips are booked on Instagram only. |
+| `footer.booking` | الخرجات تتعلن في Instagram وتتحجز هنا. | Trips are announced on Instagram and booked here. |
 
-## Trips (src/content/trips/*.md)
+## Trips (supabase/seed-data/trips/*.md, seeded into Supabase)
 
 Dates are all `TBD` (TODO(owner)). Summaries are kept short and generic on purpose so they stay true.
 

@@ -1,16 +1,14 @@
 /**
- * Trip filters: terrain + region radios. Keeps the choice in the URL
- * (?terrain=…&region=…) so filtered views can be shared and the region cards
- * on the home page can link straight to a filtered list.
+ * Trip filters: terrain + region radios over every trip list on the page
+ * (Upcoming and Past). Keeps the choice in the URL (?terrain=…&region=…) so
+ * filtered views can be shared and home-page region cards can link to them.
  */
 const form = document.querySelector<HTMLFormElement>('[data-trip-filters]');
-const items = Array.from(document.querySelectorAll<HTMLElement>('[data-trip]'));
+const sections = Array.from(document.querySelectorAll<HTMLElement>('[data-trip-section]'));
 const countEl = document.querySelector<HTMLElement>('[data-trip-count]');
-const emptyEl = document.querySelector<HTMLElement>('[data-trip-empty]');
 
 function selected(name: string): string {
-  const input = form?.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`);
-  return input?.value ?? '';
+  return form?.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`)?.value ?? '';
 }
 
 function select(name: string, value: string): void {
@@ -25,15 +23,20 @@ function apply(updateUrl: boolean): void {
   const terrain = selected('terrain');
   const region = selected('region');
   let visible = 0;
-  for (const item of items) {
-    const terrains = (item.dataset.terrainList ?? '').split(' ');
-    const show = (!terrain || terrains.includes(terrain)) && (!region || item.dataset.region === region);
-    item.hidden = !show;
-    if (show) visible++;
+  for (const section of sections) {
+    let inSection = 0;
+    for (const item of section.querySelectorAll<HTMLElement>('[data-trip]')) {
+      const terrains = (item.dataset.terrainList ?? '').split(' ');
+      const show = (!terrain || terrains.includes(terrain)) && (!region || item.dataset.region === region);
+      item.hidden = !show;
+      if (show) inSection++;
+    }
+    const empty = section.querySelector<HTMLElement>('[data-trip-empty]');
+    if (empty) empty.hidden = inSection > 0;
+    visible += inSection;
   }
   const template = form.dataset.countTemplate ?? '{count}';
   if (countEl) countEl.textContent = template.replace('{count}', String(visible));
-  if (emptyEl) emptyEl.hidden = visible > 0;
 
   if (updateUrl) {
     const url = new URL(window.location.href);
@@ -53,7 +56,6 @@ if (form) {
   form.addEventListener('change', () => apply(true));
   form.addEventListener('submit', (e) => e.preventDefault());
   form.addEventListener('reset', () => {
-    // Let the browser reset the radios first, then re-apply.
     window.setTimeout(() => apply(true), 0);
   });
 }

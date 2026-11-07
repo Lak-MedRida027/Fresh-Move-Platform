@@ -31,15 +31,24 @@ md += `in \`src/i18n/ar.json\` (or the trip file / regions file for place names)
 md += `**TODO(owner): review all Darja copy.** Look for: words that don't sound like the Instagram page, anything too\n`;
 md += `formal (MSA) or too "tourism agency", and wrong spellings of place names.\n\n`;
 
+// v2 (reservations): new or changed strings, listed first so they're easy to review.
+const V2 = /^(upcoming|seats|difficulty|price|reserve|status|reservation|trips\.(upcoming|past)|nav\.reservation|meta\.reservation|form\.error\.code|form\.failure\.captcha|form\.turnstileLabel|trip\.(price|dates|meeting|meetingTime|deadline|deadlineLeft|deadlineSoon|description|bring|payment|paymentNote)$)|^how\.|^faq\.a3$|^footer\.booking$|^privacy\.(what|why|who|keep)\.text$/;
+const v2Keys = Object.keys(ar).filter((k) => V2.test(k));
+md += '## New or changed in v2 (reservations), review these first\n\n';
+md += 'TODO(owner): review. The "How it works" steps, FAQ answer 3, footer and privacy texts changed because trips are now booked on the site.\n\n';
+md += '| Key | Darja | English |\n|---|---|---|\n';
+for (const k of v2Keys) md += `| \`${k}\` | ${esc(ar[k])} | ${esc(en[k] ?? '')} |\n`;
+md += '\n## All strings by section\n\n';
+
 for (const [group, keys] of Object.entries(groups)) {
   md += `## ${titles[group] ?? group}\n\n| Key | Darja | English |\n|---|---|---|\n`;
   for (const k of keys) md += `| \`${k}\` | ${esc(ar[k])} | ${esc(en[k] ?? '')} |\n`;
   md += '\n';
 }
 
-md += `## Trips (src/content/trips/*.md)\n\nDates are all \`TBD\` (TODO(owner)). Summaries are kept short and generic on purpose so they stay true.\n\n`;
+md += `## Trips (supabase/seed-data/trips/*.md, seeded into Supabase)\n\nDates are all \`TBD\` (TODO(owner)). Summaries are kept short and generic on purpose so they stay true.\n\n`;
 md += `| Trip | Title (Darja) | Title (English) | Region | Summary (Darja) | Summary (English) | Notes |\n|---|---|---|---|---|---|---|\n`;
-const dir = 'src/content/trips';
+const dir = 'supabase/seed-data/trips';
 for (const f of (await readdir(dir)).filter((x) => x.endsWith('.md')).sort()) {
   const raw = await readFile(join(dir, f), 'utf8');
   const front = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? '';

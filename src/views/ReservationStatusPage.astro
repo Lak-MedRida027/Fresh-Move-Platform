@@ -1,0 +1,193 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import Icon from '../components/Icon.astro';
+import { INSTAGRAM } from '../config/site';
+import { localizePath, useTranslations, type Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+const messages = {
+  required: t('form.error.required'),
+  'phone.invalid': t('form.error.phone.invalid'),
+  'code.invalid': t('form.error.code.invalid'),
+};
+const errors = {
+  default: t('form.failure.text'),
+  rate_limited: t('form.failure.rateLimited'),
+  captcha: t('form.failure.captcha'),
+  not_found: t('reservation.notFound'),
+};
+const statusLabels = {
+  pending: t('status.pending'),
+  confirmed: t('status.confirmed'),
+  waitlist: t('status.waitlist'),
+  cancelled: t('status.cancelled'),
+  expired: t('status.expired'),
+};
+---
+
+<BaseLayout locale={locale} title={t('meta.reservation.title')} description={t('meta.reservation.description')}>
+  <section class="section">
+    <div class="container status-page">
+      <SectionHeading level="h1" title={t('reservation.title')} intro={t('reservation.intro')} />
+
+      <div class="form-card">
+        <form
+          class="form"
+          novalidate
+          data-status-form
+          data-lang={locale}
+          data-messages={JSON.stringify(messages)}
+          data-errors={JSON.stringify(errors)}
+          data-status-labels={JSON.stringify(statusLabels)}
+          data-trip-base={localizePath('/trips/', locale)}
+          data-sending={t('form.sending')}
+        >
+          <div class="field">
+            <label class="field__label" for="status-phone">{t('form.phone.label')}</label>
+            <input
+              class="field__input field__input--ltr"
+              id="status-phone"
+              name="phone"
+              type="tel"
+              inputmode="tel"
+              autocomplete="tel"
+              dir="ltr"
+              maxlength="20"
+              required
+              aria-describedby="status-phone-error"
+              data-field="phone"
+            />
+            <p class="field__error" id="status-phone-error" data-error-for="phone" hidden></p>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="status-code">{t('reservation.code.label')}</label>
+            <p class="field__hint" id="status-code-hint">{t('reservation.code.hint')}</p>
+            <input
+              class="field__input field__input--ltr status-page__code"
+              id="status-code"
+              name="code"
+              type="text"
+              autocomplete="off"
+              autocapitalize="characters"
+              spellcheck="false"
+              dir="ltr"
+              maxlength="12"
+              required
+              aria-describedby="status-code-hint status-code-error"
+              data-field="code"
+            />
+            <p class="field__error" id="status-code-error" data-error-for="code" hidden></p>
+          </div>
+
+          <div class="form__trap" aria-hidden="true">
+            <label for="status-website">{t('form.honeypot')}</label>
+            <input id="status-website" name="website" type="text" tabindex="-1" autocomplete="off" />
+          </div>
+
+          <div
+            class="form__turnstile"
+            data-turnstile
+            data-sitekey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY}
+            aria-label={t('form.turnstileLabel')}
+            role="group"
+          >
+          </div>
+
+          <button class="btn btn-primary form__submit" type="submit" data-submit>
+            <span class="form__spinner" aria-hidden="true"></span>
+            <span data-submit-label>{t('reservation.submit')}</span>
+          </button>
+
+          <div class="form__failure" role="alert" data-failure hidden>
+            <p data-failure-text></p>
+            <a class="btn btn-ghost" href={INSTAGRAM.dm} target="_blank" rel="noopener" data-instagram-link>
+              <Icon name="message" size={20} />
+              <span>{t('form.failure.dm')}</span>
+              <span class="visually-hidden">{t('a11y.opensInstagram')}</span>
+            </a>
+          </div>
+        </form>
+
+        <div class="status-result" data-result hidden aria-live="polite">
+          <dl class="status-result__list">
+            <div>
+              <dt>{t('reservation.code.label')}</dt>
+              <dd class="status-result__code" dir="ltr" data-r-code></dd>
+            </div>
+            <div>
+              <dt>{t('reservation.trip')}</dt>
+              <dd><a data-r-trip></a></dd>
+            </div>
+            <div>
+              <dt>{t('reservation.status')}</dt>
+              <dd class="status-result__status" data-r-status></dd>
+            </div>
+            <div data-r-hold-row hidden>
+              <dt>{t('reservation.holdUntil')}</dt>
+              <dd data-r-hold></dd>
+            </div>
+          </dl>
+          <a class="btn btn-primary" href={INSTAGRAM.dm} target="_blank" rel="noopener" data-instagram-link>
+            <Icon name="message" size={20} />
+            <span>{t('reserve.success.dm')}</span>
+            <span class="visually-hidden">{t('a11y.opensInstagram')}</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    import '../scripts/status-form.ts';
+  </script>
+</BaseLayout>
+
+<style>
+  .status-page {
+    max-inline-size: 40rem;
+  }
+  .status-page__code {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .status-result {
+    display: grid;
+    gap: 1.25rem;
+    justify-items: start;
+    margin-block-start: 1.5rem;
+    padding-block-start: 1.5rem;
+    border-block-start: 1px solid var(--border);
+  }
+  .status-result[hidden] {
+    display: none;
+  }
+  .status-result__list {
+    display: grid;
+    gap: 0.9rem;
+    margin: 0;
+    inline-size: 100%;
+  }
+  .status-result__list dt {
+    color: var(--fg-muted);
+    font-size: 0.9rem;
+  }
+  .status-result__list dd {
+    margin: 0.15rem 0 0;
+    font-weight: 600;
+  }
+  .status-result__code {
+    font-family: var(--font-display-latin);
+    font-size: 1.6rem;
+    letter-spacing: 0.08em;
+    text-align: start;
+  }
+  .status-result__status {
+    font-size: 1.15rem;
+  }
+</style>

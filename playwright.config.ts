@@ -6,6 +6,8 @@ const BASE_URL = process.env.BASE_URL;
 
 export default defineConfig({
   testDir: 'tests/e2e',
+  // Creates the e2e trips (open / full / closed) in the LOCAL database.
+  globalSetup: process.env.BASE_URL ? undefined : './tests/e2e/fixtures.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

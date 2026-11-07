@@ -5,7 +5,7 @@ import TripCard from '../components/TripCard.astro';
 import Icon from '../components/Icon.astro';
 import { FILTER_TERRAINS, REGIONS } from '../data/regions';
 import { useTranslations, type Locale } from '../i18n';
-import { getPastTrips } from '../lib/trips';
+import { getPastTrips, getUpcomingTrips, type Trip } from '../lib/trips';
 
 interface Props {
   locale: Locale;
@@ -13,7 +13,12 @@ interface Props {
 const { locale } = Astro.props;
 const t = useTranslations(locale);
 if (Astro.cache?.enabled) Astro.cache.set({ maxAge: 60, swr: 300, tags: ['trips'] });
-const trips = await getPastTrips();
+const [upcoming, past] = await Promise.all([getUpcomingTrips(), getPastTrips()]);
+const total = upcoming.length + past.length;
+const sections: { id: string; title: string; trips: Trip[]; variant: 'upcoming' | 'past'; empty: string }[] = [
+  { id: 'upcoming', title: t('trips.upcoming'), trips: upcoming, variant: 'upcoming', empty: t('upcoming.empty') },
+  { id: 'past', title: t('trips.past'), trips: past, variant: 'past', empty: t('filter.empty') },
+];
 const countTemplate = t('filter.count', { count: '{count}' });
 ---
 
@@ -59,7 +64,7 @@ const countTemplate = t('filter.count', { count: '{count}' });
         </fieldset>
         <div class="filters__status">
           <p class="filters__count" role="status" aria-live="polite" data-trip-count>
-            {t('filter.count', { count: trips.length })}
+            {t('filter.count', { count: total })}
           </p>
           <button type="reset" class="filters__reset" data-trip-reset>
             <Icon name="close" size={16} />
@@ -68,16 +73,25 @@ const countTemplate = t('filter.count', { count: '{count}' });
         </div>
       </form>
 
-      <ul class="trip-grid" role="list" data-trip-list>
-        {
-          trips.map((trip) => (
-            <li data-trip data-terrain-list={trip.terrain.join(' ')} data-region={trip.region}>
-              <TripCard trip={trip} locale={locale} headingLevel="h2" />
-            </li>
-          ))
-        }
-      </ul>
-      <p class="trips__empty muted" data-trip-empty hidden>{t('filter.empty')}</p>
+      {
+        sections.map((s) => (
+          <section class="trips__section" id={s.id} aria-labelledby={`${s.id}-title`} data-trip-section>
+            <h2 class="trips__heading" id={`${s.id}-title`}>
+              {s.title}
+            </h2>
+            <ul class="trip-grid" role="list" data-trip-list>
+              {s.trips.map((trip) => (
+                <li data-trip data-terrain-list={trip.terrain.join(' ')} data-region={trip.region}>
+                  <TripCard trip={trip} locale={locale} headingLevel="h3" variant={s.variant} />
+                </li>
+              ))}
+            </ul>
+            <p class="trips__empty muted" data-trip-empty hidden={s.trips.length > 0}>
+              {s.empty}
+            </p>
+          </section>
+        ))
+      }
     </div>
   </section>
 
@@ -188,6 +202,13 @@ const countTemplate = t('filter.count', { count: '{count}' });
   }
   [data-trip][hidden] {
     display: none;
+  }
+  .trips__section + .trips__section {
+    margin-block-start: clamp(2.5rem, 6vw, 4rem);
+  }
+  .trips__heading {
+    margin-block-end: 1.25rem;
+    font-size: clamp(1.6rem, 5vw, 2.2rem);
   }
   .trips__empty {
     padding-block: 2rem;

@@ -7,6 +7,7 @@ import { t } from '../i18n';
 import type { RegionId, Terrain } from '../data/regions';
 import type { Database } from './database.types';
 import { memo } from './memo';
+import { todayInAlgeria } from './dates';
 import { srcset, storageUrl } from './media';
 import { supabasePublic, type PublicClient } from './supabase/public';
 
@@ -49,7 +50,13 @@ export interface Trip {
   whatToBring: { ar: string; en: string };
   cover: TripImage | null;
   gallery: TripImage[];
+  /** Upcoming trips only: seats left right now (null when unknown). */
+  seatsLeft: number | null;
 }
+
+/** What the visitor can do: book, book (few seats), waitlist, or nothing. */
+export type SeatState = 'open' | 'almost' | 'full' | 'closed';
+export const ALMOST_FULL_AT = 3;
 
 const CACHE_MS = 60_000;
 
@@ -95,7 +102,20 @@ export function toTrip(row: TripRow & { images?: ImageRow[] | null }, base?: str
     whatToBring: { ar: row.what_to_bring_ar, en: row.what_to_bring_en },
     cover: coverRow ? toImage(coverRow, base) : null,
     gallery: images.filter((i) => i.kind === 'gallery').map((i) => toImage(i, base)),
+    seatsLeft: null,
   };
+}
+
+export function isUpcoming(trip: Trip, today = todayInAlgeria()): boolean {
+  return (trip.status === 'open' || trip.status === 'closed') && !!trip.startDate && trip.startDate >= today;
+}
+
+export function seatState(trip: Trip, now = Date.now()): SeatState {
+  if (trip.status !== 'open') return 'closed';
+  if (trip.registrationDeadline && Date.parse(trip.registrationDeadline) <= now) return 'closed';
+  if (trip.seatsLeft === null) return 'open';
+  if (trip.seatsLeft <= 0) return 'full';
+  return trip.seatsLeft <= ALMOST_FULL_AT ? 'almost' : 'open';
 }
 
 // Two foreign keys link trips and trip_images (trip_id and cover_image_id), so
@@ -121,6 +141,28 @@ export async function fetchTrips(client: PublicClient = supabasePublic()): Promi
 /** All published trips (cached per isolate for a minute). */
 export function getTrips(): Promise<Trip[]> {
   return memo('trips:all', CACHE_MS, fetchTrips);
+}
+
+/** Upcoming (open / closed, not started) with live seat counts; soonest first. */
+export async function getUpcomingTrips(client: PublicClient = supabasePublic()): Promise<Trip[]> {
+  const upcoming = (await getTrips()).filter((t) => isUpcoming(t));
+  if (!upcoming.length) return [];
+  const stats = await memo(`stats:${upcoming.map((t) => t.id).join(',')}`, 30_000, async () => {
+    const { data, error } = await client.rpc('trip_public_stats', { p_trip_ids: upcoming.map((t) => t.id) });
+    if (error) throw error;
+    return data;
+  });
+  const left = new Map(stats.map((s) => [s.trip_id, s.seats_left]));
+  return upcoming
+    .map((t) => ({ ...t, seatsLeft: left.get(t.id) ?? null }))
+    .sort((a, b) => (a.startDate ?? '').localeCompare(b.startDate ?? ''));
+}
+
+/** One trip with its live seat count (if upcoming). */
+export async function getTripWithSeats(slug: string): Promise<Trip | null> {
+  const trip = await getTripBySlug(slug);
+  if (!trip || !isUpcoming(trip)) return trip;
+  return (await getUpcomingTrips()).find((t) => t.id === trip.id) ?? trip;
 }
 
 /** Past trips for the gallery: status `completed`. */

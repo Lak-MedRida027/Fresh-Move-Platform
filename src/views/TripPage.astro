@@ -4,9 +4,12 @@ import Icon from '../components/Icon.astro';
 import TerrainTag from '../components/TerrainTag.astro';
 import TripPhoto from '../components/TripPhoto.astro';
 import InstagramButtons from '../components/InstagramButtons.astro';
+import ReserveForm from '../components/ReserveForm.astro';
+import SeatsBadge from '../components/SeatsBadge.astro';
 import { getRegion } from '../data/regions';
 import { localizePath, useTranslations, type Locale } from '../i18n';
-import { formatTripDate, type Trip } from '../lib/trips';
+import { formatTripDate, isUpcoming, seatState, type Trip } from '../lib/trips';
+import { formatDateRange, formatDateTime, formatTime } from '../lib/dates';
 
 interface Props {
   locale: Locale;
@@ -19,6 +22,11 @@ const title = data.title[locale];
 const region = getRegion(data.region);
 const primary = data.terrain[0] ?? 'mountain';
 const cover = data.cover;
+
+const upcoming = isUpcoming(data);
+const state = upcoming ? seatState(data) : 'closed';
+const numberFmt = new Intl.NumberFormat(locale === 'ar' ? 'ar-DZ' : 'en');
+const meetingTime = formatTime(data.meetingTime);
 
 const HERO_SIZES = '100vw';
 const total = data.gallery.length;
@@ -80,8 +88,12 @@ const photos = data.gallery.map((img, i) => ({
           <dd>{region.name[locale]}</dd>
         </div>
         <div>
-          <dt>{t('trip.date')}</dt>
-          <dd>{formatTripDate(data.startDate, locale)}</dd>
+          <dt>{upcoming ? t('trip.dates') : t('trip.date')}</dt>
+          <dd>
+            {upcoming && data.startDate
+              ? formatDateRange(data.startDate, data.endDate, locale)
+              : formatTripDate(data.startDate, locale)}
+          </dd>
         </div>
         <div>
           <dt>{t('trip.terrain')}</dt>
@@ -89,9 +101,97 @@ const photos = data.gallery.map((img, i) => ({
             {data.terrain.map((terrain) => <TerrainTag terrain={terrain} locale={locale} />)}
           </dd>
         </div>
+        {
+          upcoming && data.priceDa !== null && (
+            <div>
+              <dt>{t('trip.price')}</dt>
+              <dd class="trip__price">{t('price.da', { price: numberFmt.format(data.priceDa) })}</dd>
+            </div>
+          )
+        }
+        {
+          upcoming && data.difficulty && (
+            <div>
+              <dt>{t('difficulty.label')}</dt>
+              <dd>{t(`difficulty.${data.difficulty}`)}</dd>
+            </div>
+          )
+        }
+        {
+          upcoming && data.meetingPoint[locale] && (
+            <div>
+              <dt>{t('trip.meeting')}</dt>
+              <dd>
+                {data.meetingPoint[locale]}
+                {meetingTime && (
+                  <span class="trip__time">
+                    {t('trip.meetingTime')} <bdi dir="ltr">{meetingTime}</bdi>
+                  </span>
+                )}
+              </dd>
+            </div>
+          )
+        }
+        {
+          upcoming && data.registrationDeadline && (
+            <div>
+              <dt>{t('trip.deadline')}</dt>
+              <dd>
+                {formatDateTime(data.registrationDeadline, locale)}
+                {state !== 'closed' && (
+                  <span
+                    class="trip__countdown"
+                    data-countdown={data.registrationDeadline}
+                    data-template-days={t('trip.deadlineLeft', { days: '{days}', hours: '{hours}' })}
+                    data-template-soon={t('trip.deadlineSoon', { hours: '{hours}', minutes: '{minutes}' })}
+                    data-closed={t('seats.closed')}
+                  />
+                )}
+              </dd>
+            </div>
+          )
+        }
       </dl>
+      {upcoming && <SeatsBadge trip={data} locale={locale} />}
 
       <p class="trip__story">{data.summary[locale]}</p>
+      {
+        upcoming && (
+          <div class="trip__details">
+            {data.description[locale] && (
+              <section aria-labelledby="about-trip">
+                <h2 id="about-trip">{t('trip.description')}</h2>
+                <p class="prewrap">{data.description[locale]}</p>
+              </section>
+            )}
+            {data.whatToBring[locale] && (
+              <section aria-labelledby="bring">
+                <h2 id="bring">{t('trip.bring')}</h2>
+                <p class="prewrap">{data.whatToBring[locale]}</p>
+              </section>
+            )}
+            {data.paymentInstructions[locale] && (
+              <section aria-labelledby="pay">
+                <h2 id="pay">{t('trip.payment')}</h2>
+                <p class="prewrap">{data.paymentInstructions[locale]}</p>
+                <p class="muted">{t('trip.paymentNote', { hours: data.holdHours })}</p>
+              </section>
+            )}
+          </div>
+        )
+      }
+      {
+        upcoming && state !== 'closed' && <ReserveForm locale={locale} trip={data} state={state} />
+      }
+      {
+        upcoming && state === 'closed' && (
+          <section class="form-card trip-closed" aria-labelledby="closed-title" data-registrations-closed>
+            <h2 id="closed-title">{t('reserve.closedTitle')}</h2>
+            <p>{t('reserve.closedText')}</p>
+            <InstagramButtons locale={locale} followLabel={t('how.ctaFollow')} dmLabel={t('how.ctaDm')} />
+          </section>
+        )
+      }
       {
         data.instagramPostUrl && (
           <p>
@@ -131,11 +231,15 @@ const photos = data.gallery.map((img, i) => ({
         )
       }
 
-      <aside class="trip-cta" aria-labelledby="trip-cta-title">
-        <h2 id="trip-cta-title" class="trip-cta__title">{t('trip.cta.title')}</h2>
-        <p class="trip-cta__text">{t('trip.cta.text')}</p>
-        <InstagramButtons locale={locale} followLabel={t('how.ctaFollow')} dmLabel={t('how.ctaDm')} />
-      </aside>
+      {
+        !upcoming && (
+          <aside class="trip-cta" aria-labelledby="trip-cta-title">
+            <h2 id="trip-cta-title" class="trip-cta__title">{t('trip.cta.title')}</h2>
+            <p class="trip-cta__text">{t('trip.cta.text')}</p>
+            <InstagramButtons locale={locale} followLabel={t('how.ctaFollow')} dmLabel={t('how.ctaDm')} />
+          </aside>
+        )
+      }
     </div>
   </article>
 
@@ -166,6 +270,7 @@ const photos = data.gallery.map((img, i) => ({
 
   <script>
     import '../scripts/lightbox.ts';
+    import '../scripts/countdown.ts';
   </script>
 </BaseLayout>
 
@@ -230,7 +335,7 @@ const photos = data.gallery.map((img, i) => ({
   }
   .trip__facts {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
     gap: 0.75rem;
     margin: 0;
   }
@@ -253,6 +358,40 @@ const photos = data.gallery.map((img, i) => ({
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
+  }
+  .trip__price {
+    font-family: var(--font-display-latin);
+    font-size: 1.3rem;
+    color: var(--sand-text);
+  }
+  :global(html[lang^='ar']) .trip__price {
+    font-family: var(--font-arabic);
+  }
+  .trip__time {
+    display: block;
+    color: var(--fg-muted);
+    font-weight: 500;
+  }
+  .trip__countdown {
+    display: block;
+    margin-block-start: 0.25rem;
+    color: var(--link);
+    font-size: 0.9rem;
+  }
+  .trip__details {
+    display: grid;
+    gap: 1.5rem;
+    max-inline-size: 46rem;
+  }
+  .trip__details h2,
+  .trip-closed h2 {
+    font-size: 1.5rem;
+    margin-block-end: 0.5rem;
+  }
+  .trip-closed {
+    display: grid;
+    gap: 0.75rem;
+    justify-items: start;
   }
   .trip__story {
     max-inline-size: 44rem;

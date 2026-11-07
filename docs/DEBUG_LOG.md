@@ -166,3 +166,24 @@ An automated review flagged three weaknesses; all fixed with tests in `tests/api
 - **Secrets:** the build copies `.dev.vars` into `dist/server/.prerender/` for prerendering. A post-build
   check (`scripts/check-client-secrets.mjs`) fails the build if any server-only key name or value appears
   in `dist/client` (what browsers can download).
+
+## Phase 4: public reservations
+
+- **Reservations never succeeded in e2e.** Reproduced with curl against workerd: the API answered
+  `name.invalid`. The test names ("E2E Tester") contain a digit, which the shared name rule rightly rejects.
+  Fixed the test data (letter-only names), not the rule.
+- **No seats badge on the trip page.** The route still used `getTripBySlug` (no seat count) instead of
+  `getTripWithSeats`. Caught by the e2e reservation test.
+- **Prices failed axe contrast in light theme.** Desert Gold `#A08548` is 3.5:1 on white and the price
+  isn't "bold large text". Added `--sand-text` (`#7A6534`, 5.6:1) for small gold text in light theme.
+- **Every dark-theme page failed axe after a rebuild.** Not a CSS bug: a preview server started by hand
+  before the rebuild kept serving the old build's stylesheet list (one 404), and Playwright reused it.
+  Same cause for stale trips: that server's 60 s in-memory cache still held trips the fixtures had
+  recreated. Lesson: let Playwright start its own server after the fixtures.
+- **"Not found" test hit the rate limiter.** Every run checked the same fake code, so the per-code limit
+  (10/hour) kicked in across repeated runs. That's the limiter working; the test now uses a random code and
+  the e2e fixtures reset the local `rate_limits` table.
+- **Meeting time rendered in the wrong place in RTL** (`06:30محطة باتنة ·`). The time is now on its own line
+  inside `<bdi dir="ltr">`.
+- **Known, for phase 6:** with an on-demand server build, Astro emits one stylesheet per build environment,
+  so pages link two CSS files that share the base styles (~20 KB raw duplicated). Works; to optimise later.

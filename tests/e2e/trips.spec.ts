@@ -41,7 +41,8 @@ test.describe('trips list filters', () => {
   test('empty state appears when nothing matches', async ({ page }) => {
     await page.goto('/en/trips/?terrain=desert&region=babors');
     await expect(visibleCards(page)).toHaveCount(0);
-    await expect(page.locator('[data-trip-empty]')).toBeVisible();
+    await expect(page.locator('#past [data-trip-empty]')).toBeVisible();
+    await expect(page.locator('#upcoming [data-trip-empty]')).toBeVisible();
   });
 });
 
@@ -96,7 +97,7 @@ test.describe('trip detail gallery', () => {
   });
 });
 
-test.describe('Instagram is the only booking path', () => {
+test.describe('Instagram links and the booking path', () => {
   const IG = /^https:\/\/(www\.instagram\.com\/fresh_move1\/|ig\.me\/m\/fresh_move1)$/;
   const pages = ['/', '/en/', '/trips/', '/en/trips/', '/trips/chelia-summit/', '/en/trips/chelia-summit/', '/join/', '/en/join/'];
 

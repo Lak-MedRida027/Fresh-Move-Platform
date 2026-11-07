@@ -2,10 +2,10 @@
 // Rendered on request from Supabase (cached ~60 s at the edge, tag "trips").
 import TripPage from '../../views/TripPage.astro';
 import NotFoundPage from '../../views/NotFoundPage.astro';
-import { getTripBySlug } from '../../lib/trips';
+import { getTripWithSeats } from '../../lib/trips';
 
 const slug = Astro.params.slug ?? '';
-const trip = /^[a-z0-9-]{1,80}$/.test(slug) ? await getTripBySlug(slug) : null;
+const trip = /^[a-z0-9-]{1,80}$/.test(slug) ? await getTripWithSeats(slug) : null;
 if (!trip) Astro.response.status = 404;
 else if (Astro.cache?.enabled) Astro.cache.set({ maxAge: 60, swr: 300, tags: ['trips', `trip:${trip.id}`] });
 ---

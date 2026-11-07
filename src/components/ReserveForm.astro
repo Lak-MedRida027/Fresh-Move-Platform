@@ -1,0 +1,216 @@
+---
+/**
+ * Seat reservation for an upcoming trip: person fields → POST /api/reserve →
+ * success screen with the reservation code, status, hold deadline (Algeria
+ * time), payment instructions and the "send proof on Instagram" button.
+ * Behaviour: src/scripts/reserve-form.ts.
+ */
+import Icon from './Icon.astro';
+import MemberFields from './MemberFields.astro';
+import { INSTAGRAM } from '../config/site';
+import { localizePath, useTranslations, type Locale } from '../i18n';
+import { fieldLabels, fieldMessages } from '../lib/form-messages';
+import type { SeatState, Trip } from '../lib/trips';
+
+interface Props {
+  locale: Locale;
+  trip: Trip;
+  state: Exclude<SeatState, 'closed'>;
+}
+const { locale, trip, state } = Astro.props;
+const t = useTranslations(locale);
+const waitlist = state === 'full';
+const consentLabel = t('reserve.consent');
+const payment = trip.paymentInstructions[locale];
+const errorMessages = {
+  default: t('form.failure.text'),
+  rate_limited: t('form.failure.rateLimited'),
+  captcha: t('form.failure.captcha'),
+  closed: t('reserve.error.closed'),
+  too_many_pending: t('reserve.error.tooMany'),
+  not_found: t('reserve.error.closed'),
+};
+const successText = {
+  pending: t('reserve.success.pendingTitle'),
+  waitlist: t('reserve.success.waitlistTitle'),
+  confirmed: t('reserve.success.confirmedTitle'),
+  holdUntil: t('reserve.success.holdUntil', { date: '{date}' }),
+  copied: t('reserve.success.copied'),
+  copy: t('reserve.success.copy'),
+};
+const statusLabels = {
+  pending: t('status.pending'),
+  confirmed: t('status.confirmed'),
+  waitlist: t('status.waitlist'),
+};
+---
+
+<section class="form-card reserve" aria-labelledby="reserve-title" data-reserve-root>
+  <h2 id="reserve-title" class="reserve__title">{waitlist ? t('reserve.titleWaitlist') : t('reserve.title')}</h2>
+  <p class="reserve__intro muted" data-reserve-intro>
+    {waitlist ? t('reserve.introWaitlist') : t('reserve.intro', { hours: trip.holdHours })}
+  </p>
+
+  <form
+    class="form"
+    novalidate
+    data-reserve-form
+    data-trip-id={trip.id}
+    data-lang={locale}
+    data-messages={fieldMessages(locale)}
+    data-labels={fieldLabels(locale, consentLabel)}
+    data-sending={t('form.sending')}
+    data-error-messages={JSON.stringify(errorMessages)}
+    data-success-text={JSON.stringify(successText)}
+    data-status-labels={JSON.stringify(statusLabels)}
+  >
+    <MemberFields locale={locale} idPrefix="reserve" consentLabel={consentLabel} />
+
+    <button class="btn btn-primary form__submit" type="submit" data-submit>
+      <span class="form__spinner" aria-hidden="true"></span>
+      <span data-submit-label>{waitlist ? t('reserve.submitWaitlist') : t('reserve.submit')}</span>
+    </button>
+
+    <div class="form__failure" role="alert" data-failure hidden>
+      <p class="form__failure-title">{t('form.failure.title')}</p>
+      <p data-failure-text>{t('form.failure.text')}</p>
+      <a class="btn btn-ghost" href={INSTAGRAM.dm} target="_blank" rel="noopener" data-instagram-link>
+        <Icon name="message" size={20} />
+        <span>{t('form.failure.dm')}</span>
+        <span class="visually-hidden">{t('a11y.opensInstagram')}</span>
+      </a>
+    </div>
+
+    <noscript>
+      <p class="form__noscript">
+        {t('form.noscript')}
+        <a href={INSTAGRAM.dm}>{t('form.failure.dm')}</a>
+      </p>
+    </noscript>
+  </form>
+
+  <div class="reserve-done" data-success hidden>
+    <Icon name="check" size={40} class="form__success-icon" />
+    <h2 class="reserve-done__title" tabindex="-1" data-success-title></h2>
+    <p class="reserve-done__existing" data-existing hidden>{t('reserve.success.existing')}</p>
+
+    <div class="reserve-done__code">
+      <p class="reserve-done__label">{t('reserve.success.code')}</p>
+      <p class="reserve-done__value" dir="ltr" lang="en" data-code></p>
+      <button type="button" class="btn btn-ghost reserve-done__copy" data-copy>
+        <span data-copy-label>{t('reserve.success.copy')}</span>
+      </button>
+      <p class="reserve-done__status" data-status></p>
+      <p class="reserve-done__hold" data-hold hidden></p>
+    </div>
+
+    <div class="reserve-done__next" data-next-pending>
+      <h3>{t('reserve.success.next')}</h3>
+      <ol>
+        <li>{t('reserve.success.step1')}</li>
+        <li>{t('reserve.success.step2')}</li>
+        <li>{t('reserve.success.step3')}</li>
+      </ol>
+      {
+        payment && (
+          <div class="reserve-done__payment">
+            <h4>{t('trip.payment')}</h4>
+            <p class="prewrap">{payment}</p>
+          </div>
+        )
+      }
+    </div>
+    <p class="reserve-done__waitlist" data-next-waitlist hidden>{t('reserve.success.waitlistText')}</p>
+
+    <div class="form__success-actions">
+      <a class="btn btn-primary" href={INSTAGRAM.dm} target="_blank" rel="noopener" data-instagram-link data-proof>
+        <Icon name="message" size={20} />
+        <span>{t('reserve.success.dm')}</span>
+        <span class="visually-hidden">{t('a11y.opensInstagram')}</span>
+      </a>
+      <a class="btn btn-ghost" href={localizePath('/reservation/', locale)} data-check-link>
+        {t('reserve.success.check')}
+      </a>
+    </div>
+  </div>
+</section>
+
+<script>
+  import '../scripts/reserve-form.ts';
+</script>
+
+<style>
+  .reserve {
+    display: grid;
+    gap: 1rem;
+  }
+  .reserve__title,
+  .reserve-done__title {
+    font-size: clamp(1.6rem, 6vw, 2.2rem);
+  }
+  .reserve-done {
+    display: grid;
+    gap: 1rem;
+    justify-items: start;
+  }
+  .reserve-done[hidden] {
+    display: none;
+  }
+  .reserve-done__title:focus {
+    outline: none;
+  }
+  .reserve-done :global(.form__success-icon) {
+    color: var(--success);
+  }
+  .reserve-done__code {
+    display: grid;
+    gap: 0.5rem;
+    justify-items: start;
+    inline-size: 100%;
+    padding: 1.25rem;
+    border: 2px dashed var(--accent-sand);
+    border-radius: var(--radius);
+    background: var(--surface-raised);
+  }
+  .reserve-done__label {
+    color: var(--fg-muted);
+    font-weight: 600;
+  }
+  .reserve-done__value {
+    font-family: var(--font-display-latin);
+    font-weight: 700;
+    font-size: clamp(2.2rem, 11vw, 3.2rem);
+    letter-spacing: 0.08em;
+    line-height: 1.1;
+  }
+  .reserve-done__status {
+    font-weight: 700;
+  }
+  .reserve-done__hold {
+    font-weight: 600;
+    color: var(--fg);
+  }
+  .reserve-done__next {
+    display: grid;
+    gap: 0.6rem;
+  }
+  .reserve-done__next h3 {
+    font-size: 1.3rem;
+  }
+  .reserve-done__next ol {
+    margin: 0;
+    padding-inline-start: 1.4rem;
+    display: grid;
+    gap: 0.3rem;
+  }
+  .reserve-done__payment {
+    padding: 1rem;
+    border-inline-start: 3px solid var(--accent-sand);
+    background: var(--surface-raised);
+    border-radius: var(--radius-sm);
+  }
+  .reserve-done__payment h4 {
+    margin: 0 0 0.4rem;
+    font-size: 1.05rem;
+  }
+</style>

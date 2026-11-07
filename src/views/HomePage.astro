@@ -9,7 +9,7 @@ import InstagramButtons from '../components/InstagramButtons.astro';
 import { REGIONS } from '../data/regions';
 import { INSTAGRAM, MIN_AGE, SITE, STATS } from '../config/site';
 import { localizePath, useTranslations, type Locale, type TKey } from '../i18n';
-import { getFeaturedTrips } from '../lib/trips';
+import { getFeaturedTrips, getUpcomingTrips } from '../lib/trips';
 
 interface Props {
   locale: Locale;
@@ -20,10 +20,11 @@ const t = useTranslations(locale);
 // so admin edits can purge it.
 if (Astro.cache?.enabled) Astro.cache.set({ maxAge: 60, swr: 300, tags: ['trips'] });
 // If the database is unreachable, the page still renders (without trip cards).
-const featured = await getFeaturedTrips(6).catch((error) => {
+const onError = (error: unknown) => {
   console.error('home: could not load trips', error instanceof Error ? error.message : error);
   return [];
-});
+};
+const [upcoming, featured] = await Promise.all([getUpcomingTrips().catch(onError), getFeaturedTrips(6).catch(onError)]);
 const tripsHref = localizePath('/trips/', locale);
 
 // Hero: pre-sized WebP files (scripts/make-hero.mjs), preloaded with the same srcset.
@@ -231,7 +232,30 @@ const faqs = [1, 2, 3, 4, 5, 6] as const;
     </div>
   </section>
 
-  <!-- 6. Featured past trips -->
+  <!-- 6a. Upcoming trips (bookable on the site) -->
+  <section class="section upcoming" id="upcoming" aria-labelledby="upcoming-title">
+    <div class="container">
+      <SectionHeading eyebrow={t('upcoming.eyebrow')} title={t('upcoming.title')} id="upcoming-title" />
+      {
+        upcoming.length ? (
+          <ul class="trip-grid" role="list" data-upcoming-list>
+            {upcoming.map((trip) => (
+              <li class="reveal">
+                <TripCard trip={trip} locale={locale} variant="upcoming" />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div class="upcoming__empty">
+            <p>{t('upcoming.empty')}</p>
+            <InstagramButtons locale={locale} followLabel={t('how.ctaFollow')} dmLabel={t('how.ctaDm')} />
+          </div>
+        )
+      }
+    </div>
+  </section>
+
+  <!-- 6b. Featured past trips -->
   <section class="section featured" aria-labelledby="featured-title">
     <div class="container">
       <SectionHeading eyebrow={t('featured.eyebrow')} title={t('featured.title')} id="featured-title" />
@@ -612,6 +636,17 @@ const faqs = [1, 2, 3, 4, 5, 6] as const;
   .featured__more {
     margin-block-start: 2rem;
     text-align: center;
+  }
+
+  /* ---------- Upcoming ---------- */
+  .upcoming__empty {
+    display: grid;
+    gap: 1rem;
+    justify-items: start;
+    padding: 1.5rem 1.25rem;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    font-size: 1.05rem;
   }
 
   /* ---------- How it works ---------- */
