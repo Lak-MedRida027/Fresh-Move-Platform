@@ -162,6 +162,8 @@
   "form.failure.title": "That didn't go through",
   "form.failure.text": "Something went wrong and we couldn't save your sign-up. Try again later, or DM us on Instagram and we'll sign you up.",
   "form.failure.rateLimited": "Too many attempts. Wait a few minutes and try again.",
+  "form.failure.captcha": "We couldn't confirm you're human. Please try again, or DM us on Instagram.",
+  "form.turnstileLabel": "Bot protection check",
   "form.failure.dm": "DM us on Instagram",
   "privacy.title": "Privacy notice",
   "privacy.intro": "A short note on what we do with the information you give us in the membership form.",

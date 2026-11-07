@@ -3,6 +3,7 @@
  * server (src/lib/membership.ts), shows inline errors + an error summary,
  * posts JSON to /api/join and shows the success or failure state.
  */
+import { attachTurnstile } from './turnstile';
 import {
   FIELDS,
   validateAge,
@@ -26,6 +27,7 @@ function setup(form: HTMLFormElement) {
   const submitLabel = form.querySelector<HTMLElement>('[data-submit-label]')!;
   const idleLabel = submitLabel.textContent ?? '';
   const failure = form.querySelector<HTMLElement>('[data-failure]')!;
+  const turnstile = attachTurnstile(form);
   const failureText = form.querySelector<HTMLElement>('[data-failure-text]')!;
   const success = root.querySelector<HTMLElement>('[data-success]')!;
   const touched = new Set<Field>();
@@ -126,6 +128,7 @@ function setup(form: HTMLFormElement) {
       sourcePage: window.location.pathname,
       website: String(data.get('website') ?? ''),
       startedAt: PAGE_LOADED_AT,
+      turnstileToken: await turnstile.token(),
     };
 
     try {
@@ -156,7 +159,12 @@ function setup(form: HTMLFormElement) {
       }
 
       failureText.textContent =
-        res.status === 429 ? (form.dataset.rateLimited ?? '') : (form.dataset.failureMessage ?? '');
+        res.status === 429
+          ? (form.dataset.rateLimited ?? '')
+          : body.error === 'captcha'
+            ? (form.dataset.captchaMessage ?? '')
+            : (form.dataset.failureMessage ?? '');
+      turnstile.reset(); // tokens are single-use
       failure.hidden = false;
     } catch {
       failureText.textContent = form.dataset.failureMessage ?? '';

@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "node scripts/write-headers.ts && astro build && node scripts/check-client-secrets.mjs",
     "preview": "astro preview",
     "astro": "astro",
     "check": "astro check && tsc --noEmit",
@@ -16,7 +16,6 @@
     "test": "vitest run",
     "test:e2e": "astro build && playwright test",
     "test:all": "npm run check && npm run lint && npm run test && npm run test:e2e",
-    "serve:dist": "node scripts/serve-dist.mjs",
     "copy-review": "node scripts/copy-review.mjs",
     "placeholders": "node scripts/make-placeholders.mjs",
     "icons": "node scripts/make-icons.mjs",
@@ -28,14 +27,17 @@
     "db:types": "supabase gen types typescript --local > src/lib/database.types.ts",
     "db:lint": "node scripts/db-check.mjs",
     "test:db": "node scripts/with-local-supabase.mjs vitest run --config vitest.db.config.ts",
-    "db:seed": "node scripts/with-local-supabase.mjs node scripts/seed-trips.ts"
+    "db:seed": "node scripts/with-local-supabase.mjs node scripts/seed-trips.ts",
+    "setup:local": "node scripts/setup-local-env.mjs",
+    "cf:types": "wrangler types --include-runtime=false",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
-    "@astrojs/sitemap": "^3.7.4",
-    "@astrojs/vercel": "^11.0.20",
+    "@astrojs/cloudflare": "^14.4.6",
     "@fontsource/inter": "^5.3.0",
     "@fontsource/noto-sans-arabic": "^5.3.0",
     "@fontsource/oswald": "^5.3.0",
+    "@supabase/ssr": "^0.12.7",
     "astro": "^7.4.7",
     "zod": "^4.6.7"
   },
@@ -53,11 +55,17 @@
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.1",
     "vitest": "^5.1.0",
+    "wrangler": "^4.158.0",
     "yaml": "^2.9.1"
   },
   "overrides": {
     "@vercel/routing-utils": {
       "path-to-regexp": "^6.3.0"
     }
+  },
+  "allowScripts": {
+    "workerd@1.20261101.1": true,
+    "workerd@1.20261104.1": true,
+    "esbuild@0.28.2": true
   }
 }

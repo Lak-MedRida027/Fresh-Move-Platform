@@ -1,22 +1,25 @@
 import type { APIRoute } from 'astro';
-import { createJoinHandler, createRateLimiter } from '../../lib/join-handler';
+import { createJoinHandler } from '../../lib/join-handler';
+import { dbLimit, guardDeps, serviceClient } from '../../lib/server-deps';
 
-// The only on-demand route: runs as a Vercel serverless function.
 export const prerender = false;
 
 const handle = createJoinHandler({
-  // Server-only secrets, read at request time. Never imported by client code.
-  config: () => ({
-    webhookUrl: process.env.SHEETS_WEBHOOK_URL,
-    webhookSecret: process.env.SHEETS_WEBHOOK_SECRET,
-  }),
-  fetch: (...args) => fetch(...args),
-  now: () => Date.now(),
-  rateLimiter: createRateLimiter(5, 10 * 60 * 1000),
-  log: (message, detail) => console.warn(message, detail ?? ''),
+  ...guardDeps(),
+  // 5 sign-ups per phone per hour.
+  limitPhone: (phone) => dbLimit(`join:phone:${phone}`, 5, 3600),
+  saveMember: async (m) => {
+    const { error } = await serviceClient().rpc('join_member', {
+      p_full_name: m.fullName,
+      p_phone: m.phone,
+      p_wilaya_code: m.wilayaCode,
+      p_age: m.age,
+      p_consent: m.consent,
+    });
+    if (error) throw new Error(error.code ?? 'rpc_failed');
+  },
 });
 
 export const POST: APIRoute = ({ request, clientAddress }) => handle(request, clientAddress);
-
 // Any other method → 405 with an Allow header.
 export const ALL: APIRoute = ({ request }) => handle(request);

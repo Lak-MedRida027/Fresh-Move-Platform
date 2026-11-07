@@ -1,8 +1,8 @@
 ---
-import { getImage, Image } from 'astro:assets';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Icon from '../components/Icon.astro';
 import TerrainTag from '../components/TerrainTag.astro';
+import TripPhoto from '../components/TripPhoto.astro';
 import InstagramButtons from '../components/InstagramButtons.astro';
 import { getRegion } from '../data/regions';
 import { localizePath, useTranslations, type Locale } from '../i18n';
@@ -14,34 +14,19 @@ interface Props {
 }
 const { locale, trip } = Astro.props;
 const t = useTranslations(locale);
-const { data } = trip;
+const data = trip;
 const title = data.title[locale];
 const region = getRegion(data.region);
 const primary = data.terrain[0] ?? 'mountain';
+const cover = data.cover;
 
 const HERO_SIZES = '100vw';
-const cover = await getImage({
-  src: data.cover,
-  widths: [640, 960, 1280, 1600],
-  sizes: HERO_SIZES,
-  format: 'webp',
-  quality: 72,
-});
-
-const ogImage = await getImage({ src: data.cover, width: 1200, height: 630, format: 'jpg', quality: 80 });
-
 const total = data.gallery.length;
-// Full-size versions for the lightbox are computed at build time.
-const photos = await Promise.all(
-  data.gallery.map(async (img, i) => {
-    const full = await getImage({ src: img, width: 1600, format: 'webp', quality: 78 });
-    return {
-      img,
-      full: full.src,
-      alt: t('trip.photoAlt', { title, n: i + 1, total }),
-    };
-  }),
-);
+const photos = data.gallery.map((img, i) => ({
+  img,
+  full: img.srcLg,
+  alt: img.alt[locale] || t('trip.photoAlt', { title, n: i + 1, total }),
+}));
 ---
 
 <BaseLayout
@@ -49,33 +34,26 @@ const photos = await Promise.all(
   title={t('meta.trip.title', { title })}
   description={data.summary[locale]}
   ogType="article"
-  ogImage={ogImage.src}
+  ogImage={cover?.srcLg}
 >
-  <link
-    slot="head"
-    rel="preload"
-    as="image"
-    type="image/webp"
-    href={cover.src}
-    imagesrcset={cover.srcSet.attribute}
-    imagesizes={HERO_SIZES}
-    fetchpriority="high"
-  />
+  {
+    cover && (
+      <link
+        slot="head"
+        rel="preload"
+        as="image"
+        type="image/webp"
+        href={cover.src}
+        imagesrcset={cover.srcset}
+        imagesizes={HERO_SIZES}
+        fetchpriority="high"
+      />
+    )
+  }
 
   <article class="trip" data-terrain={primary}>
     <header class="trip-hero">
-      <img
-        class="trip-hero__img"
-        src={cover.src}
-        srcset={cover.srcSet.attribute}
-        sizes={HERO_SIZES}
-        width={data.cover.width}
-        height={data.cover.height}
-        alt={t('trip.coverAlt', { title })}
-        fetchpriority="high"
-        loading="eager"
-        decoding="async"
-      />
+      {cover && <TripPhoto image={cover} locale={locale} sizes={HERO_SIZES} eager class="trip-hero__img" />}
       <div class="trip-hero__scrim" aria-hidden="true"></div>
       <div class="container trip-hero__content">
         <a class="trip-hero__back" href={localizePath('/trips/', locale)}>
@@ -103,7 +81,7 @@ const photos = await Promise.all(
         </div>
         <div>
           <dt>{t('trip.date')}</dt>
-          <dd>{formatTripDate(data.date, locale)}</dd>
+          <dd>{formatTripDate(data.startDate, locale)}</dd>
         </div>
         <div>
           <dt>{t('trip.terrain')}</dt>
@@ -144,14 +122,7 @@ const photos = await Promise.all(
                     aria-label={t('trip.openPhoto', { n: i + 1 })}
                     aria-haspopup="dialog"
                   >
-                    <Image
-                      src={photo.img}
-                      alt={photo.alt}
-                      widths={[320, 480, 720]}
-                      sizes="(min-width: 64rem) 25vw, 50vw"
-                      loading="lazy"
-                      class="gallery__img"
-                    />
+                    <TripPhoto image={photo.img} locale={locale} alt={photo.alt} sizes="(min-width: 64rem) 25vw, 50vw" />
                   </button>
                 </li>
               ))}
@@ -209,12 +180,9 @@ const photos = await Promise.all(
     overflow: hidden;
     background: var(--burnt-earth);
   }
-  .trip-hero__img {
+  .trip-hero :global(.trip-hero__img) {
     position: absolute;
     inset: 0;
-    inline-size: 100%;
-    block-size: 100%;
-    object-fit: cover;
     z-index: -2;
   }
   .trip-hero__scrim {
@@ -320,13 +288,10 @@ const photos = await Promise.all(
     cursor: zoom-in;
     aspect-ratio: 3 / 2;
   }
-  .gallery__item :global(.gallery__img) {
-    inline-size: 100%;
-    block-size: 100%;
-    object-fit: cover;
+  .gallery__item :global(.trip-photo__img) {
     transition: transform 0.35s var(--ease-out);
   }
-  .gallery__item:hover :global(.gallery__img) {
+  .gallery__item:hover :global(.trip-photo__img) {
     transform: scale(1.04);
   }
 

@@ -6,7 +6,7 @@ import { mkdir, readdir, readFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import sharp from 'sharp';
 
-const TRIPS_DIR = 'src/content/trips';
+const TRIPS_DIR = 'supabase/seed-data/trips';
 const ASSETS = 'src/assets';
 const force = process.argv.includes('--force');
 
@@ -203,7 +203,7 @@ async function readTrips() {
 const trips = await readTrips();
 let made = 0;
 for (const { slug, terrain, gallery } of trips) {
-  const dir = join(ASSETS, 'trips', slug);
+  const dir = join('supabase/seed-data/trip-photos', slug);
   await mkdir(dir, { recursive: true });
   if (await render(svgFor(terrain, `${slug}-cover`, 1600, 1000), join(dir, 'cover.jpg'))) made++;
   for (let i = 1; i <= gallery; i++) {

@@ -14,7 +14,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -26,20 +26,42 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Local Supabase (Docker): migrations from supabase/migrations are applied on start.
+      - name: Start local Supabase
+        run: npx supabase start -x studio,imgproxy
+
+      - name: Local env (.env / .dev.vars from the local stack + Turnstile test keys)
+        run: npm run setup:local
+
       - name: Type check (astro check + tsc)
         run: npm run check
 
       - name: Lint
         run: npm run lint
 
+      - name: plpgsql lint + Security/Performance Advisors (fail on any finding)
+        run: npm run db:lint
+
+      - name: Generated database types are up to date
+        run: |
+          npx supabase gen types typescript --local > /tmp/database.types.ts
+          diff -u src/lib/database.types.ts /tmp/database.types.ts
+
       - name: Unit + API tests
         run: npm test
+
+      - name: Seed trips (local)
+        run: npm run db:seed
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium webkit
 
-      - name: End-to-end + accessibility tests
+      - name: End-to-end + accessibility tests (built Worker on workerd)
         run: npm run test:e2e
+
+      # Last: these create test data in the local database.
+      - name: Database tests (seats, concurrency, RLS, storage)
+        run: npm run test:db
 
       - name: Upload Playwright report
         if: failure()
@@ -48,31 +70,3 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
-
-  database:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Start local Supabase (migrations applied from supabase/migrations)
-        run: npx supabase start -x studio,imgproxy
-
-      - name: plpgsql lint + Security/Performance Advisors
-        run: npm run db:lint
-
-      - name: Generated types are up to date
-        run: |
-          npx supabase gen types typescript --local > /tmp/database.types.ts
-          diff -u src/lib/database.types.ts /tmp/database.types.ts
-
-      - name: Database tests (seats, concurrency, RLS, storage)
-        run: npm run test:db

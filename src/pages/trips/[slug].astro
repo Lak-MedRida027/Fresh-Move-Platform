@@ -1,14 +1,13 @@
 ---
-import type { GetStaticPaths } from 'astro';
+// Rendered on request from Supabase (cached ~60 s at the edge, tag "trips").
 import TripPage from '../../views/TripPage.astro';
-import { getTrips } from '../../lib/trips';
+import NotFoundPage from '../../views/NotFoundPage.astro';
+import { getTripBySlug } from '../../lib/trips';
 
-export const getStaticPaths = (async () => {
-  const trips = await getTrips();
-  return trips.map((trip) => ({ params: { slug: trip.data.slug }, props: { trip } }));
-}) satisfies GetStaticPaths;
-
-const { trip } = Astro.props;
+const slug = Astro.params.slug ?? '';
+const trip = /^[a-z0-9-]{1,80}$/.test(slug) ? await getTripBySlug(slug) : null;
+if (!trip) Astro.response.status = 404;
+else if (Astro.cache?.enabled) Astro.cache.set({ maxAge: 60, swr: 300, tags: ['trips', `trip:${trip.id}`] });
 ---
 
-<TripPage locale="ar" trip={trip} />
+{trip ? <TripPage locale="ar" trip={trip} /> : <NotFoundPage locale="ar" />}

@@ -1,12 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createJoinHandler, createRateLimiter, MAX_BODY_BYTES } from '../../src/lib/join-handler';
+import { MAX_BODY_BYTES, rateLimitKey, verifyTurnstileToken } from '../../src/lib/form-guard';
+import { createJoinHandler, type MemberInput } from '../../src/lib/join-handler';
 
 const NOW = 1_800_000_000_000;
-const URL_ = 'https://script.google.com/macros/s/TEST/exec';
-const SECRET = 'test-secret-value';
 
 const valid = {
-  fullName: 'Lina Benali',
+  fullName: 'Lina  Benali',
   phone: '0661 23 45 67',
   wilaya: '05',
   age: '24',
@@ -15,61 +14,57 @@ const valid = {
   sourcePage: '/en/join/',
   website: '',
   startedAt: NOW - 10_000,
+  turnstileToken: 'XXXX.DUMMY.TOKEN.XXXX',
 };
 
-function req(body: unknown, init: { method?: string; type?: string; ip?: string; raw?: string } = {}) {
-  const payload = init.raw ?? JSON.stringify(body);
-  return new Request('https://fresh-move.vercel.app/api/join', {
-    method: init.method ?? 'POST',
-    headers: {
-      'content-type': init.type ?? 'application/json',
-      'x-forwarded-for': init.ip ?? '203.0.113.7',
-    },
-    body: (init.method ?? 'POST') === 'GET' ? undefined : payload,
+function req(body: unknown, init: { method?: string; type?: string; raw?: string } = {}) {
+  const method = init.method ?? 'POST';
+  return new Request('https://fresh-move.example/api/join', {
+    method,
+    headers: { 'content-type': init.type ?? 'application/json' },
+    body: method === 'GET' ? undefined : (init.raw ?? JSON.stringify(body)),
   });
 }
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let saveMember: ReturnType<typeof vi.fn<(m: MemberInput) => Promise<void>>>;
+let verifyTurnstile: ReturnType<typeof vi.fn<(token: string, ip: string) => Promise<boolean>>>;
+let ipAllowed: boolean;
+let phoneAllowed: boolean;
+let limitIp: ReturnType<typeof vi.fn<(key: string) => Promise<boolean>>>;
 let handle: ReturnType<typeof createJoinHandler>;
 
-function setup(config = { webhookUrl: URL_, webhookSecret: SECRET }) {
-  fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }));
+beforeEach(() => {
+  saveMember = vi.fn(async () => {});
+  verifyTurnstile = vi.fn(async () => true);
+  ipAllowed = true;
+  phoneAllowed = true;
+  limitIp = vi.fn(async () => ipAllowed);
   handle = createJoinHandler({
-    config: () => config,
-    fetch: fetchMock as unknown as typeof fetch,
     now: () => NOW,
-    rateLimiter: createRateLimiter(5, 600_000),
+    limitIp,
+    limitPhone: async () => phoneAllowed,
+    verifyTurnstile,
+    saveMember,
   });
-}
-
-beforeEach(() => setup());
+});
 
 describe('POST /api/join', () => {
-  it('valid payload → 200 and forwards the normalised row plus secret', async () => {
-    const res = await handle(req(valid));
+  it('valid payload → 200 and saves the normalised member', async () => {
+    const res = await handle(req(valid), '203.0.113.7');
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0]!;
-    expect(url).toBe(URL_);
-    expect(init.method).toBe('POST');
-    expect(init.redirect).toBe('follow');
-    expect(JSON.parse(init.body)).toEqual({
-      secret: SECRET,
-      row: {
-        fullName: 'Lina Benali',
-        phone: '+213661234567',
-        wilayaCode: '05',
-        wilayaName: 'Batna / باتنة',
-        age: 24,
-        language: 'en',
-        consent: true,
-        sourcePage: '/en/join/',
-      },
+    expect(saveMember).toHaveBeenCalledWith({
+      fullName: 'Lina Benali',
+      phone: '+213661234567',
+      wilayaCode: '05',
+      age: 24,
+      consent: true,
     });
+    expect(verifyTurnstile).toHaveBeenCalledWith('XXXX.DUMMY.TOKEN.XXXX', '203.0.113.7');
+    expect(limitIp).toHaveBeenCalledWith('join:203.0.113.7');
   });
 
-  it('invalid payload → 400 with field errors, nothing forwarded', async () => {
+  it('invalid fields → 400 with field errors, nothing saved', async () => {
     const res = await handle(req({ ...valid, fullName: 'A', phone: '0851234567', wilaya: '70', age: '15', consent: false }));
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({
@@ -83,90 +78,91 @@ describe('POST /api/join', () => {
         consent: 'consent.required',
       },
     });
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(saveMember).not.toHaveBeenCalled();
   });
 
-  it('wrong shape / bad JSON → 400, nothing forwarded', async () => {
+  it('wrong shape / bad JSON → 400, nothing saved', async () => {
     expect((await handle(req({ hello: 'world' }))).status).toBe(400);
     expect((await handle(req(null, { raw: '{not json' }))).status).toBe(400);
     expect((await handle(req({ ...valid, sourcePage: 'javascript:alert(1)' }))).status).toBe(400);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(saveMember).not.toHaveBeenCalled();
   });
 
-  it('honeypot filled → rejected, nothing forwarded', async () => {
-    const res = await handle(req({ ...valid, website: 'http://spam.example' }));
-    expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ ok: false, error: 'rejected' });
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('submitted too fast (< 3 s) → rejected, nothing forwarded', async () => {
-    const res = await handle(req({ ...valid, startedAt: NOW - 1500 }));
-    expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ ok: false, error: 'rejected' });
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('startedAt in the future or ancient → rejected', async () => {
-    expect((await handle(req({ ...valid, startedAt: NOW + 60_000 }))).status).toBe(400);
-    expect((await handle(req({ ...valid, startedAt: NOW - 3 * 86_400_000 }))).status).toBe(400);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('upstream failure → 502 with a generic message', async () => {
-    fetchMock.mockResolvedValueOnce(new Response('boom', { status: 500 }));
-    let res = await handle(req(valid));
-    expect(res.status).toBe(502);
-    expect(await res.json()).toEqual({ ok: false, error: 'upstream' });
-
-    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ ok: false, error: 'bad secret' }), { status: 200 }));
-    res = await handle(req(valid, { ip: '198.51.100.1' }));
-    expect(res.status).toBe(502);
-    const body = await res.json();
-    expect(body).toEqual({ ok: false, error: 'upstream' }); // upstream detail is not leaked
-
-    fetchMock.mockRejectedValueOnce(new Error('ECONNRESET'));
-    res = await handle(req(valid, { ip: '198.51.100.2' }));
-    expect(res.status).toBe(502);
-  });
-
-  it('missing configuration → 503, nothing forwarded', async () => {
-    setup({ webhookUrl: '', webhookSecret: '' });
+  it('Turnstile failure → 400 captcha, nothing saved', async () => {
+    verifyTurnstile.mockResolvedValueOnce(false);
     const res = await handle(req(valid));
-    expect(res.status).toBe(503);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ ok: false, error: 'captcha' });
+    expect(saveMember).not.toHaveBeenCalled();
   });
 
-  it('wrong method → 405 with Allow header', async () => {
-    const res = await handle(req(null, { method: 'GET' }));
-    expect(res.status).toBe(405);
-    expect(res.headers.get('allow')).toBe('POST');
+  it('honeypot filled → rejected before Turnstile, nothing saved', async () => {
+    const res = await handle(req({ ...valid, website: 'http://spam.example' }));
+    expect(await res.json()).toEqual({ ok: false, error: 'rejected' });
+    expect(verifyTurnstile).not.toHaveBeenCalled();
+    expect(saveMember).not.toHaveBeenCalled();
+  });
+
+  it('too fast (< 3 s), future or ancient start time → rejected', async () => {
+    for (const startedAt of [NOW - 1500, NOW + 60_000, NOW - 3 * 86_400_000]) {
+      expect((await handle(req({ ...valid, startedAt }))).status).toBe(400);
+    }
+    expect(saveMember).not.toHaveBeenCalled();
+  });
+
+  it('per-IP rate limit → 429 before Turnstile', async () => {
+    ipAllowed = false;
+    const res = await handle(req(valid));
+    expect(res.status).toBe(429);
+    expect(verifyTurnstile).not.toHaveBeenCalled();
+  });
+
+  it('per-phone rate limit → 429, nothing saved', async () => {
+    phoneAllowed = false;
+    const res = await handle(req(valid));
+    expect(res.status).toBe(429);
+    expect(saveMember).not.toHaveBeenCalled();
+  });
+
+  it('database failure → 502 with a generic message (no details)', async () => {
+    saveMember.mockRejectedValueOnce(new Error('PGRST connection refused at db.secret.host'));
+    const res = await handle(req(valid));
+    expect(res.status).toBe(502);
+    const text = await res.text();
+    expect(JSON.parse(text)).toEqual({ ok: false, error: 'upstream' });
+    expect(text).not.toContain('PGRST');
+  });
+
+  it('wrong method → 405 with Allow; wrong content type → 415', async () => {
+    const r405 = await handle(req(null, { method: 'GET' }));
+    expect(r405.status).toBe(405);
+    expect(r405.headers.get('allow')).toBe('POST');
     expect((await handle(req(valid, { method: 'PUT' }))).status).toBe(405);
-  });
-
-  it('wrong content type → 415', async () => {
-    const res = await handle(req(null, { type: 'application/x-www-form-urlencoded', raw: 'fullName=x' }));
-    expect(res.status).toBe(415);
+    expect((await handle(req(null, { type: 'application/x-www-form-urlencoded', raw: 'a=b' }))).status).toBe(415);
     expect((await handle(req(valid, { type: 'text/plain' }))).status).toBe(415);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('accepts a charset in the content type', async () => {
     expect((await handle(req(valid, { type: 'application/json; charset=utf-8' }))).status).toBe(200);
   });
 
-  it('body over the size limit → 413', async () => {
-    const res = await handle(req({ ...valid, fullName: 'x'.repeat(MAX_BODY_BYTES) }));
-    expect(res.status).toBe(413);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('rate limits by IP → 429 after 5 attempts', async () => {
-    for (let i = 0; i < 5; i++) expect((await handle(req(valid, { ip: '192.0.2.9' }))).status).toBe(200);
-    const res = await handle(req(valid, { ip: '192.0.2.9' }));
-    expect(res.status).toBe(429);
-    expect(fetchMock).toHaveBeenCalledTimes(5);
-    expect((await handle(req(valid, { ip: '192.0.2.10' }))).status).toBe(200);
+  it('body over the size limit → 413 (also when streamed without Content-Length)', async () => {
+    expect((await handle(req({ ...valid, fullName: 'x'.repeat(MAX_BODY_BYTES) }))).status).toBe(413);
+    const big = new TextEncoder().encode(JSON.stringify({ ...valid, fullName: 'x'.repeat(MAX_BODY_BYTES * 4) }));
+    let pulled = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(c) {
+        if (pulled >= big.length) return c.close();
+        c.enqueue(big.slice(pulled, pulled + 1024));
+        pulled += 1024;
+      },
+    });
+    const r = new Request('https://x/api/join', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: stream,
+      duplex: 'half',
+    } as RequestInit);
+    expect((await handle(r)).status).toBe(413);
+    expect(pulled).toBeLessThan(big.length);
+    expect(saveMember).not.toHaveBeenCalled();
   });
 
   it('responses are JSON and never cached', async () => {
@@ -174,61 +170,37 @@ describe('POST /api/join', () => {
     expect(res.headers.get('content-type')).toContain('application/json');
     expect(res.headers.get('cache-control')).toBe('no-store');
   });
-
-  it('never echoes the secret or webhook URL', async () => {
-    fetchMock.mockRejectedValueOnce(new Error(`failed ${URL_} ${SECRET}`));
-    const text = await (await handle(req(valid))).text();
-    expect(text).not.toContain(SECRET);
-    expect(text).not.toContain('script.google.com');
-  });
 });
 
-describe('hardening (security review)', () => {
-  it('keys the rate limit on the platform address, not spoofable headers', async () => {
-    for (let i = 0; i < 5; i++) {
-      // Attacker rotates X-Forwarded-For, but the platform address stays the same.
-      const r = req(valid, { ip: `10.0.0.${i}` });
-      expect((await handle(r, '198.51.100.50')).status).toBe(200);
-    }
-    expect((await handle(req(valid, { ip: '10.9.9.9' }), '198.51.100.50')).status).toBe(429);
-  });
-
-  it('only trusts the last (proxy-appended) X-Forwarded-For entry as a fallback', async () => {
-    const { rateLimitKey } = await import('../../src/lib/join-handler');
-    const r = new Request('https://x/api/join', { headers: { 'x-forwarded-for': '1.2.3.4, 203.0.113.9' } });
-    expect(rateLimitKey(r)).toBe('203.0.113.9');
+describe('form guard helpers', () => {
+  it('rate-limit key prefers the platform address over headers', () => {
+    const r = new Request('https://x/', { headers: { 'x-forwarded-for': '1.2.3.4, 203.0.113.9', 'cf-connecting-ip': '198.51.100.4' } });
     expect(rateLimitKey(r, '192.0.2.1')).toBe('192.0.2.1');
+    expect(rateLimitKey(r)).toBe('198.51.100.4');
+    expect(rateLimitKey(new Request('https://x/', { headers: { 'x-forwarded-for': '1.2.3.4, 203.0.113.9' } }))).toBe('203.0.113.9');
     expect(rateLimitKey(new Request('https://x/'))).toBe('unknown');
   });
 
-  it('rejects an oversized chunked body with no Content-Length while streaming', async () => {
-    const big = new TextEncoder().encode(JSON.stringify({ ...valid, fullName: 'x'.repeat(MAX_BODY_BYTES * 4) }));
-    let pulled = 0;
-    const stream = new ReadableStream<Uint8Array>({
-      pull(controller) {
-        if (pulled >= big.length) return controller.close();
-        controller.enqueue(big.slice(pulled, pulled + 1024));
-        pulled += 1024;
-      },
+  it('verifyTurnstileToken posts secret + token to siteverify and reads success', async () => {
+    const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
+      const form = init.body as FormData;
+      expect(form.get('secret')).toBe('s3cret');
+      expect(form.get('response')).toBe('tok');
+      expect(form.get('remoteip')).toBe('203.0.113.7');
+      return new Response(JSON.stringify({ success: true }));
     });
-    const r = new Request('https://fresh-move.vercel.app/api/join', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: stream,
-      duplex: 'half',
-    } as RequestInit);
-    const res = await handle(r, '198.51.100.60');
-    expect(res.status).toBe(413);
-    expect(pulled).toBeLessThan(big.length); // stopped reading early
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(await verifyTurnstileToken('s3cret', 'tok', '203.0.113.7', fetchMock as unknown as typeof fetch)).toBe(true);
+    expect(fetchMock.mock.calls[0]![0]).toBe('https://challenges.cloudflare.com/turnstile/v0/siteverify');
   });
 
-  it('limiter evicts only expired keys and fails closed when full of live keys', () => {
-    const limiter = createRateLimiter(1, 1000, 2);
-    expect(limiter.hit('a', 0)).toBe(true);
-    expect(limiter.hit('b', 0)).toBe(true);
-    expect(limiter.hit('c', 10)).toBe(false); // full of live keys: deny, don't wipe
-    expect(limiter.hit('a', 10)).toBe(false); // 'a' still limited (counters kept)
-    expect(limiter.hit('c', 2000)).toBe(true); // a and b expired → evicted → room for c
+  it('verifyTurnstileToken fails closed', async () => {
+    const no = vi.fn(async () => new Response(JSON.stringify({ success: false })));
+    const boom = vi.fn(async () => {
+      throw new Error('network');
+    });
+    expect(await verifyTurnstileToken('s', 'tok', 'ip', no as unknown as typeof fetch)).toBe(false);
+    expect(await verifyTurnstileToken('s', 'tok', 'ip', boom as unknown as typeof fetch)).toBe(false);
+    expect(await verifyTurnstileToken('s', '', 'ip', no as unknown as typeof fetch)).toBe(false);
+    expect(await verifyTurnstileToken('', 'tok', 'ip', no as unknown as typeof fetch)).toBe(false);
   });
 });

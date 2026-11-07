@@ -162,6 +162,8 @@
   "form.failure.title": "ما خدمتش هاد المرة",
   "form.failure.text": "صرا مشكل وما قدرناش نسجّلوك. عاود من بعد، ولا بعثلنا DM في Instagram ونسجّلوك حنا.",
   "form.failure.rateLimited": "بعثت بزاف المرات. استنّى شوية وعاود.",
+  "form.failure.captcha": "ما قدرناش نتأكدو باللي راك إنسان. عاود جرّب، ولا بعثلنا DM في Instagram.",
+  "form.turnstileLabel": "تحقق الحماية من الروبوهات",
   "form.failure.dm": "بعثلنا DM في Instagram",
   "privacy.title": "الخصوصية",
   "privacy.intro": "ورقة قصيرة تفهّمك واش نديرو بالمعلومات اللي تعطيهالنا في فورمولار التسجيل.",

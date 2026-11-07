@@ -1,6 +1,6 @@
 ---
-import { Image } from 'astro:assets';
 import TerrainTag from './TerrainTag.astro';
+import TripPhoto from './TripPhoto.astro';
 import { getRegion } from '../data/regions';
 import { localizePath, type Locale } from '../i18n';
 import { formatTripDate, type Trip } from '../lib/trips';
@@ -11,7 +11,7 @@ interface Props {
   headingLevel?: 'h2' | 'h3';
 }
 const { trip, locale, headingLevel = 'h3' } = Astro.props;
-const { data } = trip;
+const data = trip;
 const title = data.title[locale];
 const href = localizePath(`/trips/${data.slug}/`, locale);
 const Heading = headingLevel;
@@ -20,14 +20,16 @@ const primary = data.terrain[0] ?? 'mountain';
 
 <article class="trip-card" data-terrain={primary}>
   <div class="trip-card__media">
-    <Image
-      src={data.cover}
-      alt=""
-      widths={[360, 560, 800]}
-      sizes="(min-width: 64rem) 33vw, (min-width: 40rem) 50vw, 100vw"
-      class="trip-card__img"
-      loading="lazy"
-    />
+    {
+      data.cover && (
+        <TripPhoto
+          image={data.cover}
+          locale={locale}
+          alt=""
+          sizes="(min-width: 64rem) 33vw, (min-width: 40rem) 50vw, 100vw"
+        />
+      )
+    }
   </div>
   <div class="trip-card__body">
     <ul class="trip-card__tags" role="list">
@@ -42,7 +44,7 @@ const primary = data.terrain[0] ?? 'mountain';
     <p class="trip-card__meta">
       <span>{getRegion(data.region).name[locale]}</span>
       <span aria-hidden="true">·</span>
-      <span class="trip-card__date">{formatTripDate(data.date, locale)}</span>
+      <span class="trip-card__date">{formatTripDate(data.startDate, locale)}</span>
     </p>
     <p class="trip-card__summary">{data.summary[locale]}</p>
   </div>
@@ -80,11 +82,6 @@ const primary = data.terrain[0] ?? 'mountain';
     inset: auto 0 0;
     block-size: 4px;
     background: var(--terrain);
-  }
-  .trip-card__img {
-    inline-size: 100%;
-    block-size: 100%;
-    object-fit: cover;
   }
   .trip-card__body {
     display: grid;

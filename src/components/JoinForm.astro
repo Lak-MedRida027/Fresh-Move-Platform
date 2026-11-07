@@ -51,6 +51,7 @@ const labels = {
     data-sending={t('form.sending')}
     data-rate-limited={t('form.failure.rateLimited')}
     data-failure-message={t('form.failure.text')}
+    data-captcha-message={t('form.failure.captcha')}
   >
     <div class="form__summary" tabindex="-1" aria-live="assertive" data-error-summary hidden>
       <p class="form__summary-title">{t('form.errorSummary')}</p>
@@ -157,6 +158,16 @@ const labels = {
       </div>
       <a class="check__link" href={localizePath('/privacy/', locale)}>{t('form.consent.privacy')}</a>
       <p class="field__error" id={id('consent-error')} data-error-for="consent" hidden></p>
+    </div>
+
+    <!-- Cloudflare Turnstile (loaded on first interaction, see src/scripts/turnstile.ts) -->
+    <div
+      class="form__turnstile"
+      data-turnstile
+      data-sitekey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY}
+      aria-label={t('form.turnstileLabel')}
+      role="group"
+    >
     </div>
 
     <button class="btn btn-primary form__submit" type="submit" data-submit>
@@ -333,6 +344,12 @@ const labels = {
     inline-size: fit-content;
   }
 
+  .form__turnstile:empty {
+    display: none;
+  }
+  .form__turnstile {
+    min-block-size: 65px;
+  }
   .form__trap {
     position: absolute;
     inline-size: 1px;

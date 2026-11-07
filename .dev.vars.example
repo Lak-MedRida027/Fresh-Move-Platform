@@ -1,0 +1,9 @@
+# Server-only secrets for `wrangler dev` / `astro preview`. Copy to .dev.vars, or run:
+# npm run setup:local. In production set them with `npx wrangler secret put <NAME>`.
+# NEVER commit real values.
+# The Supabase "secret" key (sb_secret_…): bypasses RLS, server only.
+SUPABASE_SERVICE_ROLE_KEY=
+# Cloudflare Turnstile secret. Test secret that always passes: 1x0000000000000000000000000000000AA
+TURNSTILE_SECRET_KEY=
+# Long random string protecting the manual cron endpoints.
+CRON_SECRET=

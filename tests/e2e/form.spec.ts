@@ -77,6 +77,8 @@ for (const [lang, prefix] of [
         website: '',
       });
       expect(typeof sent!.startedAt).toBe('number');
+      // Turnstile (Cloudflare's always-pass test key in dev/CI) produced a token.
+      expect(String(sent!.turnstileToken ?? '').length).toBeGreaterThan(0);
     });
 
     test('server failure shows a clear message and the DM fallback', async ({ page }) => {

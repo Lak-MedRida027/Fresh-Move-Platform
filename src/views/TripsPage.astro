@@ -5,14 +5,15 @@ import TripCard from '../components/TripCard.astro';
 import Icon from '../components/Icon.astro';
 import { FILTER_TERRAINS, REGIONS } from '../data/regions';
 import { useTranslations, type Locale } from '../i18n';
-import { getTrips } from '../lib/trips';
+import { getPastTrips } from '../lib/trips';
 
 interface Props {
   locale: Locale;
 }
 const { locale } = Astro.props;
 const t = useTranslations(locale);
-const trips = await getTrips();
+if (Astro.cache?.enabled) Astro.cache.set({ maxAge: 60, swr: 300, tags: ['trips'] });
+const trips = await getPastTrips();
 const countTemplate = t('filter.count', { count: '{count}' });
 ---
 
@@ -70,7 +71,7 @@ const countTemplate = t('filter.count', { count: '{count}' });
       <ul class="trip-grid" role="list" data-trip-list>
         {
           trips.map((trip) => (
-            <li data-trip data-terrain-list={trip.data.terrain.join(' ')} data-region={trip.data.region}>
+            <li data-trip data-terrain-list={trip.terrain.join(' ')} data-region={trip.region}>
               <TripCard trip={trip} locale={locale} headingLevel="h2" />
             </li>
           ))

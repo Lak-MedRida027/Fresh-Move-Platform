@@ -145,3 +145,24 @@ An automated review flagged three weaknesses; all fixed with tests in `tests/api
 ## plpgsql_check: STABLE function calling a VOLATILE one
 - `private.require_admin()` (and `admin_storage_usage()`) were `STABLE` but can raise; marked volatile.
   `npm run db:lint` (lint + Security/Performance Advisors) now reports no issues, and CI fails on any finding.
+
+## Phase 3: moving to Cloudflare Workers
+
+- **Unknown trip slug returned 500.** `Astro.rewrite('/404/')` from an on-demand page to a prerendered
+  404 isn't supported. Fix: the trip route renders the 404 view itself with `Astro.response.status = 404`.
+  e2e checks both languages return 404 (not 500).
+- **Unit tests failed to start (`exports is not defined`).** `getViteConfig()` loaded the Cloudflare
+  adapter's workerd test runner. The tests don't need Astro's virtual modules any more, so they use a
+  plain Vitest config.
+- **Browser scripts stopped type-checking.** `wrangler types` emits the whole Workers runtime as globals,
+  which replace DOM types. Now `wrangler types --include-runtime=false` (bindings only) plus the few
+  runtime types we use in `src/cloudflare.d.ts`.
+- **Headers:** Cloudflare's `_headers` file doesn't apply to responses from the Worker, so headers are
+  defined once (`src/lib/security-headers.ts`) and applied by middleware (on-demand pages) and written to
+  `public/_headers` before each build (static files).
+- **Lighthouse on the local preview looked like a regression (75–91).** `astro preview` doesn't compress
+  (home HTML 66 KB vs ~9 KB with brotli; Cloudflare compresses in production). Measured through
+  `scripts/compress-proxy.mjs`: 90 / 95 / 93 / 95 performance, 100 for the rest.
+- **Secrets:** the build copies `.dev.vars` into `dist/server/.prerender/` for prerendering. A post-build
+  check (`scripts/check-client-secrets.mjs`) fails the build if any server-only key name or value appears
+  in `dist/client` (what browsers can download).

@@ -22,9 +22,12 @@ export default defineConfig({
   webServer: BASE_URL
     ? undefined
     : {
-    // Serves dist/ with the vercel.json headers (real CSP). `npm run test:e2e` builds first.
-        command: `node scripts/serve-dist.mjs ${PORT}`,
-        url: `http://localhost:${PORT}/`,
+        // The built Worker on workerd (Cloudflare's runtime) with the real headers/CSP.
+        // Needs the local Supabase stack with seed data: npm run db:start && npm run db:seed.
+        // `npm run test:e2e` builds first.
+        command: `npx astro preview --port ${PORT}`,
+        url: `http://localhost:${PORT}/privacy/`,
         reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
       },
 });

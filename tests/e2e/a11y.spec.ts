@@ -104,7 +104,7 @@ test('every image has alt text in the page language', async ({ page }) => {
     expect(missing, url).toEqual([]);
   }
   await page.goto('/trips/chelia-summit/');
-  await expect(page.locator('.trip-hero__img')).toHaveAttribute('alt', /قمة شيليا/);
+  await expect(page.locator('.trip-hero__img img.trip-photo__img')).toHaveAttribute('alt', /قمة شيليا/);
   await page.goto('/en/trips/chelia-summit/');
-  await expect(page.locator('.trip-hero__img')).toHaveAttribute('alt', /Chelia summit/);
+  await expect(page.locator('.trip-hero__img img.trip-photo__img')).toHaveAttribute('alt', /Chelia summit/);
 });
