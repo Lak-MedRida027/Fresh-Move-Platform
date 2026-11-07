@@ -244,6 +244,13 @@ Follow [BACKUP_RESTORE.md → Set up](BACKUP_RESTORE.md#set-up-once-at-deploy-ti
 
 ## 13. Publish v2 and forward the old address
 
+> **Until this step, the old Vercel site must keep serving v1.** Vercel builds every push to `master`,
+> and it can't build v2 (v2 is built for Cloudflare): if v2 reaches `master` early, the old address
+> answers `404 DEPLOYMENT_NOT_FOUND`. To fix that right away: Vercel → the project → **Deployments** →
+> the last **Ready** deployment from before the merge → **⋯ → Instant Rollback** (or *Promote to
+> Production*). Instant Rollback also stops new pushes from replacing it until you undo the rollback,
+> which you do in point 3 below.
+
 1. Put the new address in [`vercel-redirect/vercel.json`](../vercel-redirect/vercel.json)
    (`"destination": "https://fresh-move.<subdomain>.workers.dev/:path*"`) and commit it on `v2`.
 2. **Vercel** → the project → **Settings → Build and Deployment**:
@@ -251,7 +258,9 @@ Follow [BACKUP_RESTORE.md → Set up](BACKUP_RESTORE.md#set-up-once-at-deploy-ti
    - **Framework Preset**: Other (no build command)
 
    Do this **before** merging: Vercel deploys `master` on every push.
-3. Merge `v2` into `master` (a pull request on GitHub). Vercel redeploys as a redirect.
+3. Merge `v2` into `master` (a pull request on GitHub). Vercel redeploys as a redirect. If you used Instant
+   Rollback earlier, open **Deployments**, find this new redirect deployment and **Promote to Production**
+   (that also turns automatic deploys back on).
 4. Check: `curl.exe -sI https://freshmove-seven.vercel.app/trips/` shows `301` and the new address.
 5. In Vercel, delete the old environment variables (`SHEETS_WEBHOOK_URL`, `SHEETS_WEBHOOK_SECRET`).
 6. Update the **Instagram bio** link to the new address.
@@ -270,6 +279,7 @@ Follow [BACKUP_RESTORE.md → Set up](BACKUP_RESTORE.md#set-up-once-at-deploy-ti
 
 | Symptom | Likely cause |
 | --- | --- |
+| Old address (vercel.app) answers 404 `DEPLOYMENT_NOT_FOUND` | v2 reached `master` before step 13: Instant Rollback in Vercel (see step 13) |
 | `npm run deploy` lists problems | A value in `.env.production` is missing, local, a test key, or a secret |
 | Smoke: "CSP does not allow the Supabase project" | Built without `.env.production`: run `npm run deploy` again |
 | Smoke: "dummy token was accepted" | `TURNSTILE_SECRET_KEY` is Cloudflare's test key: `npx wrangler secret put TURNSTILE_SECRET_KEY` with the real one |
