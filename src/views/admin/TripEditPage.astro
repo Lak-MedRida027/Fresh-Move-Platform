@@ -1,0 +1,193 @@
+---
+/** Create or edit a trip. Darja and English fields side by side (stacked on phones). */
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import TripTabs from '../../components/admin/TripTabs.astro';
+import { adminT } from '../../i18n/admin';
+import { localizePath, type Locale } from '../../i18n';
+import { REGIONS, TERRAINS } from '../../data/regions';
+import { t as publicT } from '../../i18n';
+import { adminPath } from '../../lib/admin/paths';
+import { DIFFICULTIES, TRIP_STATUSES, isoToAlgiersLocal } from '../../lib/admin/trip-form';
+import type { TripRow } from '../../lib/admin/data';
+
+interface Props {
+  locale: Locale;
+  id?: string;
+}
+const { locale, id } = Astro.props;
+const t = adminT(locale);
+const admin = Astro.locals.admin!;
+let trip: TripRow | null = null;
+if (id) {
+  const { data } = await admin.supabase.from('trips').select('*').eq('id', id).maybeSingle();
+  trip = data;
+}
+const { data: settings } = await admin.supabase.from('settings').select('default_hold_hours').maybeSingle();
+const v = (k: keyof TripRow) => (trip?.[k] ?? '') as string | number;
+const title = trip ? (locale === 'ar' ? trip.title_ar : trip.title_en) : t('trips.new');
+const back = id ? adminPath(locale, `/trips/${id}/`) : adminPath(locale, '/trips/new/');
+const pairs: { key: string; label: string; textarea?: boolean; max: number; hint?: string }[] = [
+  { key: 'title', label: t('f.title'), max: 120 },
+  { key: 'summary', label: t('f.summary'), max: 500, textarea: true },
+  { key: 'description', label: t('f.description'), max: 8000, textarea: true },
+  { key: 'meeting_point', label: t('f.meetingPoint'), max: 300 },
+  { key: 'what_to_bring', label: t('f.bring'), max: 4000, textarea: true },
+  { key: 'payment_instructions', label: t('f.payment'), max: 4000, textarea: true, hint: t('f.paymentHint') },
+];
+---
+
+<AdminLayout locale={locale} title={title}>
+  <a href={adminPath(locale, '/trips/')}>← {t('nav.trips')}</a>
+  <h1>{title}</h1>
+  {id && trip && <TripTabs locale={locale} tripId={id} current="details" />}
+  {id && !trip && <p class="muted">{t('error.not_found')}</p>}
+
+  {
+    (!id || trip) && (
+      <form class="form panel" method="post" action="/admin/api/trips/" data-trip-form>
+        <input type="hidden" name="lang" value={locale} />
+        <input type="hidden" name="back" value={back} />
+        <input type="hidden" name="action" value="save" />
+        {id && <input type="hidden" name="id" value={id} />}
+
+        {pairs.map((p) => (
+          <fieldset class="field">
+            <legend class="field__label">{p.label}</legend>
+            {p.hint && <p class="field__hint">{p.hint}</p>}
+            <div class="pair">
+              {(['ar', 'en'] as const).map((l) => {
+                const name = `${p.key}_${l}`;
+                const label = `${p.label} (${l === 'ar' ? t('f.darja') : t('f.english')})`;
+                const value = String(v(name as keyof TripRow));
+                const required = p.key === 'title';
+                return p.textarea ? (
+                  <label class="field">
+                    <span class="muted-sm" aria-hidden="true">{l === 'ar' ? t('f.darja') : t('f.english')}</span>
+                    <textarea class="field__input" name={name} lang={l === 'ar' ? 'ar-DZ' : 'en'} maxlength={p.max} aria-label={label}>
+                      {value}
+                    </textarea>
+                  </label>
+                ) : (
+                  <label class="field">
+                    <span class="muted-sm" aria-hidden="true">{l === 'ar' ? t('f.darja') : t('f.english')}</span>
+                    <input
+                      class="field__input"
+                      name={name}
+                      value={value}
+                      lang={l === 'ar' ? 'ar-DZ' : 'en'}
+                      maxlength={p.max}
+                      required={required}
+                      aria-label={label}
+                    />
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        ))}
+
+        <div class="field">
+          <label class="field__label" for="tf-slug">{t('f.slug')}</label>
+          <p class="field__hint" id="tf-slug-hint">{t('f.slugHint')}</p>
+          <input class="field__input field__input--ltr mono" id="tf-slug" name="slug" value={v('slug')} dir="ltr" maxlength="80" aria-describedby="tf-slug-hint" />
+        </div>
+
+        <div class="grid-auto">
+          <div class="field">
+            <label class="field__label" for="tf-region">{t('f.region')}</label>
+            <select class="field__input" id="tf-region" name="region" required>
+              {REGIONS.map((r) => <option value={r.id} selected={trip?.region === r.id}>{r.name[locale]}</option>)}
+            </select>
+          </div>
+          <div class="field">
+            <label class="field__label" for="tf-difficulty">{t('f.difficulty')}</label>
+            <select class="field__input" id="tf-difficulty" name="difficulty">
+              <option value="">{t('f.none')}</option>
+              {DIFFICULTIES.map((d) => <option value={d} selected={trip?.difficulty === d}>{publicT(locale, `difficulty.${d}`)}</option>)}
+            </select>
+          </div>
+          <div class="field">
+            <label class="field__label" for="tf-status">{t('f.status')}</label>
+            <select class="field__input" id="tf-status" name="status" aria-describedby="tf-status-help">
+              {TRIP_STATUSES.map((s) => <option value={s} selected={(trip?.status ?? 'draft') === s}>{t(`tstatus.${s}`)}</option>)}
+            </select>
+            <p class="field__hint" id="tf-status-help">{t('trips.statusHelp')}</p>
+          </div>
+        </div>
+
+        <fieldset class="field">
+          <legend class="field__label">{t('f.terrain')}</legend>
+          <div class="checks">
+            {TERRAINS.map((ter) => (
+              <label>
+                <input type="checkbox" name="terrain" value={ter} checked={trip?.terrain?.includes(ter)} />
+                {publicT(locale, `terrain.${ter}`)}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <div class="grid-auto">
+          <div class="field">
+            <label class="field__label" for="tf-start">{t('f.startDate')}</label>
+            <input class="field__input" id="tf-start" name="start_date" type="date" value={v('start_date')} />
+          </div>
+          <div class="field">
+            <label class="field__label" for="tf-end">{t('f.endDate')}</label>
+            <input class="field__input" id="tf-end" name="end_date" type="date" value={v('end_date')} />
+          </div>
+          <div class="field">
+            <label class="field__label" for="tf-time">{t('f.meetingTime')}</label>
+            <input class="field__input" id="tf-time" name="meeting_time" type="time" value={String(v('meeting_time')).slice(0, 5)} />
+          </div>
+          <div class="field">
+            <label class="field__label" for="tf-deadline">{t('f.deadline')}</label>
+            <input class="field__input" id="tf-deadline" name="registration_deadline" type="datetime-local" value={isoToAlgiersLocal(trip?.registration_deadline ?? null)} />
+          </div>
+          <div class="field">
+            <label class="field__label" for="tf-price">{t('f.price')}</label>
+            <input class="field__input" id="tf-price" name="price_da" inputmode="numeric" pattern="[0-9]*" value={v('price_da')} />
+          </div>
+          <div class="field">
+            <label class="field__label" for="tf-capacity">{t('f.capacity')}</label>
+            <input class="field__input" id="tf-capacity" name="capacity" inputmode="numeric" pattern="[0-9]*" value={v('capacity')} />
+          </div>
+          <div class="field">
+            <label class="field__label" for="tf-hold">{t('f.holdHours')}</label>
+            <input class="field__input" id="tf-hold" name="hold_hours" inputmode="numeric" pattern="[0-9]*" value={trip?.hold_hours ?? settings?.default_hold_hours ?? 48} />
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="tf-ig">{t('f.instagram')}</label>
+          <input class="field__input field__input--ltr" id="tf-ig" name="instagram_post_url" type="url" dir="ltr" value={v('instagram_post_url')} placeholder="https://www.instagram.com/p/…" />
+        </div>
+        <label class="checks">
+          <input type="checkbox" name="featured" value="1" checked={trip?.featured} /> {t('f.featured')}
+        </label>
+
+        <div class="sticky-actions">
+          <button class="btn btn-primary" type="submit" data-save-trip>{t('save')}</button>
+          {trip && ['open', 'closed', 'completed'].includes(trip.status) && (
+            <a class="btn btn-ghost" href={localizePath(`/trips/${trip.slug}/`, locale)} target="_blank" rel="noopener">
+              {t('trips.preview')}
+            </a>
+          )}
+        </div>
+      </form>
+    )
+  }
+
+  {
+    trip && admin.role === 'owner' && (
+      <form class="panel" method="post" action="/admin/api/trips/">
+        <input type="hidden" name="lang" value={locale} />
+        <input type="hidden" name="back" value={back} />
+        <input type="hidden" name="id" value={trip.id} />
+        <input type="hidden" name="action" value="delete" />
+        <p class="muted-sm">{t('trips.deleteConfirm')}</p>
+        <button class="btn btn-danger btn-sm" type="submit">{t('trips.deleteTrip')}</button>
+      </form>
+    )
+  }
+</AdminLayout>

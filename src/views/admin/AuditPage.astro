@@ -1,0 +1,86 @@
+---
+/** Owner only: who did what and when. */
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { adminT } from '../../i18n/admin';
+import type { Locale } from '../../i18n';
+import { formatDateTime } from '../../lib/dates';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = adminT(locale);
+const admin = Astro.locals.admin!;
+const ENTITIES = ['trips', 'trip_images', 'reservations', 'members', 'admin_users', 'settings'];
+const entity = ENTITIES.includes(Astro.url.searchParams.get('entity') ?? '') ? Astro.url.searchParams.get('entity')! : '';
+const action = (Astro.url.searchParams.get('action') ?? '').replace(/[^a-z_]/g, '').slice(0, 40);
+let q = admin.supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(200);
+if (entity) q = q.eq('entity', entity);
+if (action) q = q.eq('action', action);
+const [{ data: rows }, { data: admins }] = await Promise.all([q, admin.supabase.from('admin_users').select('user_id, display_name')]);
+const names = new Map((admins ?? []).map((a) => [a.user_id, a.display_name]));
+
+/** Short "field: old → new" summary of an update. */
+function changes(before: unknown, after: unknown): string {
+  if (!before || !after || typeof before !== 'object' || typeof after !== 'object') return '';
+  const b = before as Record<string, unknown>;
+  const a = after as Record<string, unknown>;
+  return Object.keys(a)
+    .filter((k) => !['updated_at'].includes(k) && JSON.stringify(a[k]) !== JSON.stringify(b[k]))
+    .map((k) => `${k}: ${JSON.stringify(b[k])} → ${JSON.stringify(a[k])}`)
+    .join('\n');
+}
+---
+
+<AdminLayout locale={locale} title={t('aud.title')}>
+  <h1>{t('aud.title')}</h1>
+  <form class="filterbar" method="get">
+    <div class="field">
+      <label class="field__label" for="af-entity">{t('aud.entity')}</label>
+      <select class="field__input" id="af-entity" name="entity">
+        <option value="">{t('all')}</option>
+        {ENTITIES.map((e) => <option value={e} selected={e === entity}>{e}</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <label class="field__label" for="af-action">{t('aud.action')}</label>
+      <select class="field__input" id="af-action" name="action">
+        <option value="">{t('all')}</option>
+        {['insert', 'update', 'delete', 'export', 'confirm_over_capacity'].map((a) => <option value={a} selected={a === action}>{a}</option>)}
+      </select>
+    </div>
+    <button class="btn btn-ghost btn-sm" type="submit">{t('apply')}</button>
+  </form>
+
+  <table class="atable" data-audit>
+    <thead>
+      <tr>
+        <th scope="col">{t('aud.when')}</th>
+        <th scope="col">{t('aud.who')}</th>
+        <th scope="col">{t('aud.action')}</th>
+        <th scope="col">{t('aud.entity')}</th>
+        <th scope="col">{t('aud.details')}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        (rows ?? []).map((r) => (
+          <tr>
+            <td data-label={t('aud.when')}>{formatDateTime(r.created_at, locale)}</td>
+            <td data-label={t('aud.who')}>{r.actor_user_id ? (names.get(r.actor_user_id) || r.actor_user_id.slice(0, 8)) : t('aud.system')}</td>
+            <td data-label={t('aud.action')}><span class="pill">{r.action}</span></td>
+            <td data-label={t('aud.entity')}>
+              {r.entity} <span class="muted-sm mono">{(r.entity_id ?? '').slice(0, 8)}</span>
+            </td>
+            <td data-label={t('aud.details')}>
+              <div class="diff" tabindex="0" role="region" aria-label={t('aud.details')}>
+                <pre class="mono">{r.action === 'update' ? changes(r.before, r.after) : JSON.stringify(r.after ?? r.before ?? {}, null, 1).slice(0, 600)}</pre>
+              </div>
+            </td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+  {(rows ?? []).length === 0 && <p class="muted">{t('empty')}</p>}
+</AdminLayout>

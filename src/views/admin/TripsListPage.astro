@@ -1,0 +1,98 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { adminT } from '../../i18n/admin';
+import { localizePath, type Locale } from '../../i18n';
+import { adminPath } from '../../lib/admin/paths';
+import { seatCounts } from '../../lib/admin/data';
+import { formatDateRange } from '../../lib/dates';
+import { TRIP_STATUSES } from '../../lib/admin/trip-form';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = adminT(locale);
+const sb = Astro.locals.admin!.supabase;
+const filter = Astro.url.searchParams.get('status') ?? '';
+let q = sb.from('trips').select('*').order('start_date', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false });
+if ((TRIP_STATUSES as readonly string[]).includes(filter)) q = q.eq('status', filter);
+const { data: trips } = await q;
+const ids = (trips ?? []).map((tr) => tr.id);
+const { data: res } = ids.length
+  ? await sb.from('reservations').select('trip_id, status, hold_expires_at').in('trip_id', ids)
+  : { data: [] };
+const back = adminPath(locale, '/trips/') + (filter ? `?status=${filter}` : '');
+---
+
+<AdminLayout locale={locale} title={t('trips.title')}>
+  <div class="panel__head">
+    <h1>{t('trips.title')}</h1>
+    <a class="btn btn-primary" href={adminPath(locale, '/trips/new/')} data-new-trip>{t('trips.new')}</a>
+  </div>
+
+  <form class="filterbar" method="get">
+    <div class="field">
+      <label class="field__label" for="tf-status">{t('f.status')}</label>
+      <select class="field__input" id="tf-status" name="status">
+        <option value="">{t('all')}</option>
+        {TRIP_STATUSES.map((s) => <option value={s} selected={s === filter}>{t(`tstatus.${s}`)}</option>)}
+      </select>
+    </div>
+    <button class="btn btn-ghost btn-sm" type="submit">{t('apply')}</button>
+  </form>
+
+  {(trips ?? []).length === 0 && <p class="muted">{t('trips.empty')}</p>}
+  <table class="atable" data-trips-table>
+    <thead>
+      <tr>
+        <th scope="col">{t('f.title')}</th>
+        <th scope="col">{t('f.startDate')}</th>
+        <th scope="col">{t('f.status')}</th>
+        <th scope="col">{t('nav.reservations')}</th>
+        <th scope="col">{t('res.actions')}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        (trips ?? []).map((trip) => {
+          const c = seatCounts(trip, (res ?? []).filter((r) => r.trip_id === trip.id));
+          return (
+            <tr data-trip-row={trip.slug}>
+              <td data-label={t('f.title')}>
+                <a href={adminPath(locale, `/trips/${trip.id}/`)}>{locale === 'ar' ? trip.title_ar : trip.title_en}</a>
+                <div class="muted-sm mono">{trip.slug}</div>
+              </td>
+              <td data-label={t('f.startDate')}>{trip.start_date ? formatDateRange(trip.start_date, trip.end_date, locale) : '—'}</td>
+              <td data-label={t('f.status')}>
+                <span class="pill" data-status={trip.status}>{t(`tstatus.${trip.status}` as 'tstatus.open')}</span>
+              </td>
+              <td data-label={t('nav.reservations')}>
+                <a href={adminPath(locale, `/trips/${trip.id}/reservations/`)}>
+                  {c.confirmed} {t('seats.confirmed')} · {c.pending} {t('seats.pending')}
+                  {c.waitlist > 0 && ` · ${c.waitlist} ${t('rs.waitlist')}`}
+                </a>
+              </td>
+              <td data-label="">
+                <div class="actions">
+                  <a class="btn btn-ghost btn-sm" href={adminPath(locale, `/trips/${trip.id}/`)}>{t('edit')}</a>
+                  <form method="post" action="/admin/api/trips/">
+                    <input type="hidden" name="lang" value={locale} />
+                    <input type="hidden" name="back" value={back} />
+                    <input type="hidden" name="id" value={trip.id} />
+                    <input type="hidden" name="action" value="duplicate" />
+                    <button class="btn btn-ghost btn-sm" type="submit">{t('trips.duplicate')}</button>
+                  </form>
+                  {['open', 'closed', 'completed'].includes(trip.status) && (
+                    <a class="btn btn-ghost btn-sm" href={localizePath(`/trips/${trip.slug}/`, locale)} target="_blank" rel="noopener">
+                      {t('trips.preview')}
+                    </a>
+                  )}
+                </div>
+              </td>
+            </tr>
+          );
+        })
+      }
+    </tbody>
+  </table>
+</AdminLayout>

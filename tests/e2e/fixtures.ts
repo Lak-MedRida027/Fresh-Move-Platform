@@ -3,8 +3,10 @@
  * closed), created with the local stack's secret key from .env / .dev.vars.
  * Refuses to run against anything but localhost.
  */
-import { readFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
+import { totp } from '../totp';
 import sharp from 'sharp';
 import type { Database } from '../../src/lib/database.types';
 
@@ -36,12 +38,76 @@ export function localDb() {
   return createClient<Database>(url, key, { auth: { persistSession: false } });
 }
 
+/** Local e2e admin accounts (rebuilt every run). Credentials go to .playwright/ (gitignored). */
+export const ADMIN_FILE = '.playwright/e2e-admins.json';
+export interface E2EAdmin {
+  email: string;
+  password: string;
+  totpSecret: string | null;
+}
+/** Browser projects (playwright.config.ts). Each gets its own admins: a TOTP code works only once. */
+export const PROJECTS = ['mobile-chrome', 'mobile-safari', 'desktop-chrome'] as const;
+
+export function readAdmins(project: string): Record<'owner' | 'organizer' | 'fresh', E2EAdmin> {
+  const all = JSON.parse(readFileSync(ADMIN_FILE, 'utf8'));
+  return { ...all[project], fresh: all.fresh };
+}
+
+async function setupAdmins(db: ReturnType<typeof localDb>): Promise<void> {
+  const env = { ...readVars('.env') };
+  type Account = [key: string, email: string, role: 'owner' | 'organizer', mfa: boolean];
+  // Fresh addresses each run: the new accounts are created before the old ones
+  // are deleted, because the database refuses to delete the last owner.
+  const run = Date.now().toString(36);
+  const accounts: Account[] = [
+    ...PROJECTS.flatMap((p): Account[] => [
+      [`${p}.owner`, `e2e-owner-${p}-${run}@example.test`, 'owner', true],
+      [`${p}.organizer`, `e2e-organizer-${p}-${run}@example.test`, 'organizer', true],
+    ]),
+    ['fresh', `e2e-fresh-${run}@example.test`, 'organizer', false],
+  ];
+  const { data: list } = await db.auth.admin.listUsers({ perPage: 1000 });
+  const previous = (list?.users ?? []).filter((u) => u.email?.startsWith('e2e-') && u.email.endsWith('@example.test'));
+  const out: Record<string, Record<string, E2EAdmin> | E2EAdmin> = {};
+  for (const [key, email, role, mfa] of accounts) {
+    const name = key;
+    const password = `E2e-${randomUUID()}`;
+    const { data: created, error } = await db.auth.admin.createUser({ email, password, email_confirm: true });
+    if (error || !created.user) throw error ?? new Error('createUser failed');
+    await db.from('admin_users').insert({ user_id: created.user.id, role, display_name: `E2E ${name}` });
+    let totpSecret: string | null = null;
+    if (mfa) {
+      // Enrol a TOTP factor the way the app does, and keep the secret for the tests.
+      const client = createClient<Database>(env.PUBLIC_SUPABASE_URL!, env.PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false } });
+      await client.auth.signInWithPassword({ email, password });
+      const { data: factor, error: e1 } = await client.auth.mfa.enroll({ factorType: 'totp' });
+      if (e1 || !factor) throw e1 ?? new Error('enroll failed');
+      const { error: e2 } = await client.auth.mfa.challengeAndVerify({ factorId: factor.id, code: totp(factor.totp.secret) });
+      if (e2) throw e2;
+      totpSecret = factor.totp.secret;
+    }
+    const admin = { email, password, totpSecret };
+    if (key.includes('.')) {
+      const [project, who] = key.split('.') as [string, string];
+      out[project] = { ...((out[project] as Record<string, E2EAdmin>) ?? {}), [who]: admin };
+    } else out[key] = admin;
+  }
+  for (const u of previous) {
+    const { error } = await db.auth.admin.deleteUser(u.id);
+    if (error) throw new Error(`could not delete old test admin ${u.email}: ${error.message}`);
+  }
+  mkdirSync('.playwright', { recursive: true });
+  // Sessions from a previous run belong to deleted users.
+  for (const f of readdirSync('.playwright')) if (f.startsWith('session-')) rmSync(`.playwright/${f}`);
+  writeFileSync(ADMIN_FILE, JSON.stringify(out, null, 2));
+}
+
 const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
 
 export async function setupFixtures(): Promise<void> {
   const db = localDb();
   // Clean previous runs (reservations first: trips are ON DELETE RESTRICT).
-  const { data: old } = await db.from('trips').select('id').like('slug', 'e2e-%');
+  const { data: old } = await db.from('trips').select('id').or('slug.like.e2e-%,title_en.like.Admin E2E%');
   const ids = (old ?? []).map((t) => t.id);
   if (ids.length) {
     await db.from('reservations').delete().in('trip_id', ids);
@@ -120,6 +186,8 @@ export async function setupFixtures(): Promise<void> {
     .single();
   if (memberError) throw memberError;
   await db.from('reservations').insert({ code: 'FM-E2EAA', trip_id: full!.id, member_id: m!.id, status: 'confirmed' });
+
+  await setupAdmins(db);
 }
 
 export default setupFixtures;

@@ -1,0 +1,109 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { adminT } from '../../i18n/admin';
+import type { Locale } from '../../i18n';
+import { WILAYAS, getWilaya, wilayaLabel } from '../../data/wilayas';
+import { PAGE_SIZE, whatsappLink } from '../../lib/admin/data';
+import { adminPath } from '../../lib/admin/paths';
+import { formatDateTime } from '../../lib/dates';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = adminT(locale);
+const sb = Astro.locals.admin!.supabase;
+const p = Astro.url.searchParams;
+const q = (p.get('q') ?? '').slice(0, 60);
+const wilaya = /^\d{2}$/.test(p.get('wilaya') ?? '') ? p.get('wilaya')! : '';
+const ageMin = Number(p.get('age_min') ?? '') || null;
+const ageMax = Number(p.get('age_max') ?? '') || null;
+const page = Math.max(1, Number(p.get('page') ?? '1') || 1);
+
+let query = sb.from('members').select('*', { count: 'exact' });
+if (q) {
+  const digits = q.replace(/\D/g, '');
+  const safe = q.replace(/[%_,()]/g, ' ');
+  const ors = [`full_name.ilike.%${safe}%`];
+  if (digits.length >= 4) ors.push(`phone.ilike.%${digits.replace(/^0/, '')}%`);
+  query = query.or(ors.join(','));
+}
+if (wilaya) query = query.eq('wilaya_code', wilaya);
+if (ageMin) query = query.gte('age', ageMin);
+if (ageMax) query = query.lte('age', ageMax);
+const { data: members, count } = await query.order('created_at', { ascending: false }).range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+const total = count ?? 0;
+const qs = (extra: Record<string, string>) =>
+  `?${new URLSearchParams({ ...(q && { q }), ...(wilaya && { wilaya }), ...(ageMin && { age_min: String(ageMin) }), ...(ageMax && { age_max: String(ageMax) }), ...extra })}`;
+---
+
+<AdminLayout locale={locale} title={t('mem.title')}>
+  <h1>{t('mem.title')}</h1>
+  <form class="filterbar" method="get" role="search">
+    <div class="field">
+      <label class="field__label" for="mf-q">{t('search')}</label>
+      <input class="field__input" id="mf-q" name="q" value={q} placeholder={t('mem.search')} />
+    </div>
+    <div class="field">
+      <label class="field__label" for="mf-w">{t('res.wilaya')}</label>
+      <select class="field__input" id="mf-w" name="wilaya">
+        <option value="">{t('all')}</option>
+        {WILAYAS.map((w) => <option value={w.code} selected={w.code === wilaya}>{wilayaLabel(w, locale)}</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <label class="field__label" for="mf-a1">{t('mem.ageMin')}</label>
+      <input class="field__input" id="mf-a1" name="age_min" inputmode="numeric" value={ageMin ?? ''} />
+    </div>
+    <div class="field">
+      <label class="field__label" for="mf-a2">{t('mem.ageMax')}</label>
+      <input class="field__input" id="mf-a2" name="age_max" inputmode="numeric" value={ageMax ?? ''} />
+    </div>
+    <button class="btn btn-ghost btn-sm" type="submit">{t('apply')}</button>
+  </form>
+  <p class="muted-sm" data-member-count>{t('mem.count', { count: total })}</p>
+
+  <table class="atable" data-members>
+    <thead>
+      <tr>
+        <th scope="col">{t('res.name')}</th>
+        <th scope="col">{t('res.phone')}</th>
+        <th scope="col">{t('res.wilaya')}</th>
+        <th scope="col">{t('res.age')}</th>
+        <th scope="col">{t('mem.source')}</th>
+        <th scope="col">{t('mem.joined')}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        (members ?? []).map((m) => {
+          const w = getWilaya(m.wilaya_code);
+          const wa = whatsappLink(m.phone);
+          return (
+            <tr data-member={m.phone}>
+              <td data-label={t('res.name')}><a href={adminPath(locale, `/members/${m.id}/`)}>{m.full_name}</a></td>
+              <td data-label={t('res.phone')}>
+                <span class="mono">{m.phone}</span>
+                {wa && <div><a class="muted-sm" href={wa} target="_blank" rel="noopener">{t('res.whatsapp')}</a></div>}
+              </td>
+              <td data-label={t('res.wilaya')}>{w ? wilayaLabel(w, locale) : m.wilaya_code}</td>
+              <td data-label={t('res.age')}>{m.age}</td>
+              <td data-label={t('mem.source')}>{t(`src.${m.source}` as 'src.import')}</td>
+              <td data-label={t('mem.joined')}>{formatDateTime(m.created_at, locale)}</td>
+            </tr>
+          );
+        })
+      }
+    </tbody>
+  </table>
+  {(members ?? []).length === 0 && <p class="muted">{t('empty')}</p>}
+  {
+    total > PAGE_SIZE && (
+      <nav class="actions" aria-label={t('mem.title')}>
+        {page > 1 && <a class="btn btn-ghost btn-sm" href={qs({ page: String(page - 1) })}>{t('page.prev')}</a>}
+        <span class="muted-sm">{t('page.count', { from: (page - 1) * PAGE_SIZE + 1, to: Math.min(page * PAGE_SIZE, total), total })}</span>
+        {page * PAGE_SIZE < total && <a class="btn btn-ghost btn-sm" href={qs({ page: String(page + 1) })}>{t('page.next')}</a>}
+      </nav>
+    )
+  }
+</AdminLayout>

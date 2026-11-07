@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import ar from '../../src/i18n/ar.json';
 import en from '../../src/i18n/en.json';
+import adminAr from '../../src/i18n/admin.ar.json';
+import adminEn from '../../src/i18n/admin.en.json';
 import {
   getLocaleFromPath,
   localizePath,
@@ -63,5 +65,16 @@ describe('locale paths', () => {
     expect(switchLocalePath('/en/', 'ar')).toBe('/');
     expect(switchLocalePath('/trips/djanet-tassili/', 'en')).toBe('/en/trips/djanet-tassili/');
     expect(switchLocalePath('/en/join/', 'ar')).toBe('/join/');
+  });
+});
+
+describe('admin dictionaries', () => {
+  it('admin.ar.json and admin.en.json have exactly the same keys and placeholders', () => {
+    expect(Object.keys(adminAr).sort()).toEqual(Object.keys(adminEn).sort());
+    const vars = (x: string) => (x.match(/\{\w+\}/g) ?? []).sort();
+    for (const k of Object.keys(adminEn) as (keyof typeof adminEn)[]) {
+      expect(vars(adminAr[k]), k).toEqual(vars(adminEn[k]));
+      expect(adminAr[k].trim(), k).not.toBe('');
+    }
   });
 });

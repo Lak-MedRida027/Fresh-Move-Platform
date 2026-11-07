@@ -1,0 +1,93 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import ReservationTable from '../../components/admin/ReservationTable.astro';
+import { adminT } from '../../i18n/admin';
+import type { Locale } from '../../i18n';
+import { WILAYAS, wilayaLabel } from '../../data/wilayas';
+import type { ReservationWithPeople } from '../../lib/admin/data';
+import { adminPath } from '../../lib/admin/paths';
+import { formatDateTime } from '../../lib/dates';
+
+interface Props {
+  locale: Locale;
+  id: string;
+}
+const { locale, id } = Astro.props;
+const t = adminT(locale);
+const admin = Astro.locals.admin!;
+const sb = admin.supabase;
+const { data: m } = await sb.from('members').select('*').eq('id', id).maybeSingle();
+const { data: history } = m
+  ? await sb
+      .from('reservations')
+      .select('*, member:members(id, full_name, phone, wilaya_code, age), trip:trips(id, slug, title_ar, title_en)')
+      .eq('member_id', id)
+      .order('created_at', { ascending: false })
+  : { data: [] };
+const back = adminPath(locale, `/members/${id}/`);
+---
+
+<AdminLayout locale={locale} title={m?.full_name ?? t('mem.title')}>
+  <a href={adminPath(locale, '/members/')}>← {t('mem.title')}</a>
+  {!m && <p class="muted">{t('error.not_found')}</p>}
+  {
+    m && (
+      <>
+        <h1>{m.full_name}</h1>
+        <form class="form panel" method="post" action="/admin/api/members/" data-member-form>
+          <input type="hidden" name="lang" value={locale} />
+          <input type="hidden" name="back" value={back} />
+          <input type="hidden" name="id" value={m.id} />
+          <input type="hidden" name="action" value="save" />
+          <div class="grid-auto">
+            <div class="field">
+              <label class="field__label" for="me-name">{t('res.name')}</label>
+              <input class="field__input" id="me-name" name="full_name" value={m.full_name} required maxlength="60" />
+            </div>
+            <div class="field">
+              <label class="field__label" for="me-phone">{t('res.phone')}</label>
+              <input class="field__input field__input--ltr" id="me-phone" name="phone" value={m.phone} dir="ltr" required maxlength="20" />
+            </div>
+            <div class="field">
+              <label class="field__label" for="me-wilaya">{t('res.wilaya')}</label>
+              <select class="field__input" id="me-wilaya" name="wilaya" required>
+                {WILAYAS.map((w) => <option value={w.code} selected={w.code === m.wilaya_code}>{wilayaLabel(w, locale)}</option>)}
+              </select>
+            </div>
+            <div class="field">
+              <label class="field__label" for="me-age">{t('res.age')}</label>
+              <input class="field__input" id="me-age" name="age" inputmode="numeric" value={m.age} required maxlength="3" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="field__label" for="me-notes">{t('mem.notes')}</label>
+            <textarea class="field__input" id="me-notes" name="notes" maxlength="2000">{m.notes ?? ''}</textarea>
+          </div>
+          <p class="muted-sm">
+            {t('mem.source')}: {t(`src.${m.source}` as 'src.import')} · {t('mem.joined')}: {formatDateTime(m.created_at, locale)} · {t('mem.consent')}:{' '}
+            {m.consent_at ? formatDateTime(m.consent_at, locale) : '—'}
+          </p>
+          <div class="sticky-actions">
+            <button class="btn btn-primary" type="submit">{t('save')}</button>
+          </div>
+        </form>
+
+        <section class="panel" aria-labelledby="mem-history">
+          <h2 id="mem-history">{t('mem.history')}</h2>
+          <ReservationTable locale={locale} rows={(history ?? []) as unknown as ReservationWithPeople[]} back={back} />
+        </section>
+
+        {admin.role === 'owner' && (
+          <form class="panel" method="post" action="/admin/api/members/" data-delete-member>
+            <input type="hidden" name="lang" value={locale} />
+            <input type="hidden" name="back" value={back} />
+            <input type="hidden" name="id" value={m.id} />
+            <input type="hidden" name="action" value="delete" />
+            <p class="muted-sm">{t('mem.deleteHelp')}</p>
+            <button class="btn btn-danger btn-sm" type="submit">{t('mem.delete')}</button>
+          </form>
+        )}
+      </>
+    )
+  }
+</AdminLayout>

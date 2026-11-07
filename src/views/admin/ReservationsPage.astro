@@ -1,0 +1,177 @@
+---
+/** Reservations: global list, or one trip's tab (with manual booking + promote next). */
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import TripTabs from '../../components/admin/TripTabs.astro';
+import SeatBar from '../../components/admin/SeatBar.astro';
+import ReservationTable from '../../components/admin/ReservationTable.astro';
+import { adminT } from '../../i18n/admin';
+import type { Locale } from '../../i18n';
+import { WILAYAS, wilayaLabel } from '../../data/wilayas';
+import { PAGE_SIZE, loadReservations, seatCounts } from '../../lib/admin/data';
+import { adminPath } from '../../lib/admin/paths';
+
+interface Props {
+  locale: Locale;
+  tripId?: string;
+}
+const { locale, tripId } = Astro.props;
+const t = adminT(locale);
+const admin = Astro.locals.admin!;
+const sb = admin.supabase;
+const params = Astro.url.searchParams;
+const status = ['pending', 'confirmed', 'waitlist', 'cancelled', 'expired'].includes(params.get('status') ?? '') ? params.get('status')! : '';
+const q = (params.get('q') ?? '').slice(0, 60);
+const page = Math.max(1, Number(params.get('page') ?? '1') || 1);
+
+let trip = null as null | { id: string; title_ar: string; title_en: string; capacity: number | null; price_da: number | null };
+let counts = null as null | ReturnType<typeof seatCounts>;
+if (tripId) {
+  const { data } = await sb.from('trips').select('id, title_ar, title_en, capacity, price_da').eq('id', tripId).maybeSingle();
+  trip = data;
+  if (trip) {
+    const { data: all } = await sb.from('reservations').select('status, hold_expires_at').eq('trip_id', tripId);
+    counts = seatCounts(trip, all ?? []);
+  }
+}
+const { rows, total } = await loadReservations(sb, { tripId, status, q, page });
+const base = tripId ? adminPath(locale, `/trips/${tripId}/reservations/`) : adminPath(locale, '/reservations/');
+const qs = new URLSearchParams({ ...(status && { status }), ...(q && { q }) }).toString();
+const back = base + (qs ? `?${qs}` : '');
+const pageLink = (p: number) => `${base}?${new URLSearchParams({ ...(status && { status }), ...(q && { q }), page: String(p) })}`;
+const title = trip ? (locale === 'ar' ? trip.title_ar : trip.title_en) : t('res.title');
+---
+
+<AdminLayout locale={locale} title={title}>
+  {tripId && <a href={adminPath(locale, '/trips/')}>← {t('nav.trips')}</a>}
+  <h1>{title}</h1>
+  {tripId && trip && <TripTabs locale={locale} tripId={tripId} current="reservations" />}
+  {tripId && !trip && <p class="muted">{t('error.not_found')}</p>}
+
+  {
+    trip && counts && (
+      <section class="panel" aria-label={t('seats.capacity')}>
+        <SeatBar locale={locale} capacity={trip.capacity} counts={counts} />
+        {counts.waitlist > 0 && (
+          <form method="post" action="/admin/api/reservations/">
+            <input type="hidden" name="lang" value={locale} />
+            <input type="hidden" name="back" value={back} />
+            <input type="hidden" name="trip_id" value={trip.id} />
+            <input type="hidden" name="action" value="promote_next" />
+            <button class="btn btn-ghost btn-sm" type="submit">{t('res.promoteNext')}</button>
+          </form>
+        )}
+      </section>
+    )
+  }
+
+  <form class="filterbar" method="get" role="search">
+    <div class="field">
+      <label class="field__label" for="rf-q">{t('search')}</label>
+      <input class="field__input" id="rf-q" name="q" value={q} placeholder={t('res.search')} />
+    </div>
+    <div class="field">
+      <label class="field__label" for="rf-status">{t('res.status')}</label>
+      <select class="field__input" id="rf-status" name="status">
+        <option value="">{t('all')}</option>
+        {['pending', 'confirmed', 'waitlist', 'cancelled', 'expired'].map((s) => (
+          <option value={s} selected={s === status}>{t(`rs.${s}` as 'rs.pending')}</option>
+        ))}
+      </select>
+    </div>
+    <button class="btn btn-ghost btn-sm" type="submit">{t('apply')}</button>
+  </form>
+
+  <p class="muted-sm" data-res-count>{t('res.count', { count: total })}</p>
+
+  {
+    (!tripId || trip) && (
+      <>
+        <form id="bulk-form" method="post" action="/admin/api/reservations/"></form>
+        <ReservationTable
+          locale={locale}
+          rows={rows}
+          back={back}
+          actions
+          showTrip={!tripId}
+          bulkFormId="bulk-form"
+          isOwner={admin.role === 'owner'}
+        />
+        {rows.length > 0 && (
+          <div class="sticky-actions" data-bulk-bar>
+            <input type="hidden" name="lang" value={locale} form="bulk-form" />
+            <input type="hidden" name="back" value={back} form="bulk-form" />
+            <span class="muted-sm">{t('res.bulk')}</span>
+            <label class="visually-hidden" for="bulk-method">{t('res.method')}</label>
+            <select class="field__input btn-sm" id="bulk-method" name="method" form="bulk-form">
+              {['cash', 'baridimob', 'ccp', 'other'].map((m) => (
+                <option value={m}>{t(`method.${m}` as 'method.cash')}</option>
+              ))}
+            </select>
+            <button class="btn btn-primary btn-sm" type="submit" name="action" value="bulk_confirm" form="bulk-form">
+              {t('res.confirm')}
+            </button>
+            <button class="btn btn-danger btn-sm" type="submit" name="action" value="bulk_cancel" form="bulk-form">
+              {t('res.cancel')}
+            </button>
+          </div>
+        )}
+      </>
+    )
+  }
+
+  {
+    total > PAGE_SIZE && (
+      <nav class="actions" aria-label={t('res.title')}>
+        {page > 1 && <a class="btn btn-ghost btn-sm" href={pageLink(page - 1)}>{t('page.prev')}</a>}
+        <span class="muted-sm">
+          {t('page.count', { from: (page - 1) * PAGE_SIZE + 1, to: Math.min(page * PAGE_SIZE, total), total })}
+        </span>
+        {page * PAGE_SIZE < total && <a class="btn btn-ghost btn-sm" href={pageLink(page + 1)}>{t('page.next')}</a>}
+      </nav>
+    )
+  }
+
+  {
+    trip && (
+      <section class="panel" aria-labelledby="add-res">
+        <h2 id="add-res">{t('res.add')}</h2>
+        <p class="muted-sm">{t('res.addHelp')}</p>
+        <form class="form" method="post" action="/admin/api/reservations/" data-add-reservation>
+          <input type="hidden" name="lang" value={locale} />
+          <input type="hidden" name="back" value={back} />
+          <input type="hidden" name="trip_id" value={trip.id} />
+          <input type="hidden" name="action" value="add" />
+          <div class="grid-auto">
+            <div class="field">
+              <label class="field__label" for="ar-name">{t('res.name')}</label>
+              <input class="field__input" id="ar-name" name="full_name" required maxlength="60" />
+            </div>
+            <div class="field">
+              <label class="field__label" for="ar-phone">{t('res.phone')}</label>
+              <input class="field__input field__input--ltr" id="ar-phone" name="phone" type="tel" inputmode="tel" dir="ltr" required maxlength="20" />
+            </div>
+            <div class="field">
+              <label class="field__label" for="ar-wilaya">{t('res.wilaya')}</label>
+              <select class="field__input" id="ar-wilaya" name="wilaya" required>
+                <option value="">—</option>
+                {WILAYAS.map((w) => <option value={w.code}>{wilayaLabel(w, locale)}</option>)}
+              </select>
+            </div>
+            <div class="field">
+              <label class="field__label" for="ar-age">{t('res.age')}</label>
+              <input class="field__input" id="ar-age" name="age" inputmode="numeric" pattern="[0-9]*" required maxlength="3" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="field__label" for="ar-note">{t('res.note')}</label>
+            <input class="field__input" id="ar-note" name="note" maxlength="2000" />
+          </div>
+          <label class="checks">
+            <input type="checkbox" name="confirm" value="1" /> {t('res.addConfirm')}
+          </label>
+          <button class="btn btn-primary" type="submit">{t('res.add')}</button>
+        </form>
+      </section>
+    )
+  }
+</AdminLayout>

@@ -2,9 +2,12 @@
  * Helpers for database tests. They run ONLY against the local Supabase stack
  * (see scripts/with-local-supabase.mjs); a guard refuses any other host.
  */
-import { createHmac, randomInt, randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../../src/lib/database.types';
+import { totp } from '../totp';
+
+export { totp };
 
 export type DB = SupabaseClient<Database>;
 
@@ -23,28 +26,6 @@ if (host !== '127.0.0.1' && host !== 'localhost') {
 const opts = { auth: { persistSession: false, autoRefreshToken: false } };
 export const service: DB = createClient<Database>(URL_, SECRET, opts);
 export const anon = (): DB => createClient<Database>(URL_, PUBLISHABLE, opts);
-
-// ---------------------------------------------------------------------------
-// TOTP (RFC 6238) for the MFA step
-// ---------------------------------------------------------------------------
-function base32Decode(input: string): Buffer {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-  const clean = input.replace(/=+$/, '').toUpperCase();
-  let bits = '';
-  for (const ch of clean) bits += alphabet.indexOf(ch).toString(2).padStart(5, '0');
-  const bytes: number[] = [];
-  for (let i = 0; i + 8 <= bits.length; i += 8) bytes.push(parseInt(bits.slice(i, i + 8), 2));
-  return Buffer.from(bytes);
-}
-
-export function totp(secret: string, at = Date.now()): string {
-  const counter = Buffer.alloc(8);
-  counter.writeBigUInt64BE(BigInt(Math.floor(at / 1000 / 30)));
-  const hmac = createHmac('sha1', base32Decode(secret)).update(counter).digest();
-  const offset = hmac[hmac.length - 1]! & 0xf;
-  const code = (hmac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000;
-  return String(code).padStart(6, '0');
-}
 
 // ---------------------------------------------------------------------------
 // Users

@@ -1,0 +1,31 @@
+---
+import { adminT } from '../../i18n/admin';
+import type { Locale } from '../../i18n';
+import type { SeatCounts } from '../../lib/admin/data';
+
+interface Props {
+  locale: Locale;
+  capacity: number | null;
+  counts: SeatCounts;
+}
+const { locale, capacity, counts } = Astro.props;
+const t = adminT(locale);
+const cap = Math.max(capacity ?? 0, counts.confirmed + counts.pending, 1);
+// Widths as SVG attributes (inline style attributes are blocked by the CSP).
+const wConfirmed = (counts.confirmed / cap) * 100;
+const wPending = (counts.pending / cap) * 100;
+const label = `${counts.confirmed} ${t('seats.confirmed')}, ${counts.pending} ${t('seats.pending')}, ${counts.left} ${t('seats.left')}`;
+---
+
+<svg class="seatbar-svg" viewBox="0 0 100 6" preserveAspectRatio="none" role="img" aria-label={label}>
+  <rect class="seatbar-svg__bg" x="0" y="0" width="100" height="6" rx="3"></rect>
+  <rect class="seatbar-svg__confirmed" x="0" y="0" width={wConfirmed} height="6"></rect>
+  <rect class="seatbar-svg__pending" x={wConfirmed} y="0" width={wPending} height="6"></rect>
+</svg>
+<ul class="seatbar-legend" role="list">
+  <li><b>{counts.confirmed}</b> {t('seats.confirmed')}</li>
+  <li><b>{counts.pending}</b> {t('seats.pending')}</li>
+  <li><b>{counts.left}</b> {t('seats.left')}</li>
+  <li><b>{capacity ?? '—'}</b> {t('seats.capacity')}</li>
+  {counts.waitlist > 0 && <li><b>{counts.waitlist}</b> {t('rs.waitlist')}</li>}
+</ul>

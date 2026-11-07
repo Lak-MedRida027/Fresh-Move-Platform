@@ -1,0 +1,23 @@
+---
+/** Trip photos (upload, cover, order, alt text): built in phase 6. */
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import TripTabs from '../../components/admin/TripTabs.astro';
+import { adminT } from '../../i18n/admin';
+import type { Locale } from '../../i18n';
+import { adminPath } from '../../lib/admin/paths';
+
+interface Props {
+  locale: Locale;
+  id: string;
+}
+const { locale, id } = Astro.props;
+const t = adminT(locale);
+const { data: trip } = await Astro.locals.admin!.supabase.from('trips').select('id, title_ar, title_en').eq('id', id).maybeSingle();
+---
+
+<AdminLayout locale={locale} title={t('tab.photos')}>
+  <a href={adminPath(locale, '/trips/')}>← {t('nav.trips')}</a>
+  <h1>{trip ? (locale === 'ar' ? trip.title_ar : trip.title_en) : t('error.not_found')}</h1>
+  {trip && <TripTabs locale={locale} tripId={id} current="photos" />}
+  <p class="muted">{t('trips.photosSoon')}</p>
+</AdminLayout>

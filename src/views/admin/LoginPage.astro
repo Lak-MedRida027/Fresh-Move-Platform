@@ -1,0 +1,50 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { adminT } from '../../i18n/admin';
+import type { Locale } from '../../i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = adminT(locale);
+const expired = Astro.url.searchParams.has('expired');
+---
+
+<AdminLayout locale={locale} title={t('login.title')} bare>
+  <section class="auth-card form-card" aria-labelledby="login-title">
+    <h1 id="login-title">{t('login.title')}</h1>
+    {expired && <p class="admin-flash admin-flash--error" role="status">{t('login.expired')}</p>}
+    <form class="form" method="post" action="/admin/api/login/" data-login-form>
+      <input type="hidden" name="lang" value={locale} />
+      <div class="field">
+        <label class="field__label" for="login-email">{t('login.email')}</label>
+        <input
+          class="field__input field__input--ltr"
+          id="login-email"
+          name="email"
+          type="email"
+          autocomplete="username"
+          dir="ltr"
+          required
+          maxlength="200"
+        />
+      </div>
+      <div class="field">
+        <label class="field__label" for="login-password">{t('login.password')}</label>
+        <input
+          class="field__input field__input--ltr"
+          id="login-password"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          dir="ltr"
+          required
+          maxlength="200"
+        />
+      </div>
+      <button class="btn btn-primary form__submit" type="submit">{t('login.submit')}</button>
+      <p class="muted-sm">{t('login.forgot')}</p>
+    </form>
+  </section>
+</AdminLayout>

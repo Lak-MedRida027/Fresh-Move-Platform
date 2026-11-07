@@ -1,0 +1,187 @@
+---
+/**
+ * Reservations as a table (cards on phones). With `actions`, each row has an
+ * actions menu (plain forms → /admin/api/reservations/) and a checkbox for the
+ * bulk form (`bulkFormId`).
+ */
+import { adminT } from '../../i18n/admin';
+import type { Locale } from '../../i18n';
+import { formatDateTime } from '../../lib/dates';
+import { getWilaya, wilayaLabel } from '../../data/wilayas';
+import { whatsappLink, type ReservationWithPeople } from '../../lib/admin/data';
+import { adminPath } from '../../lib/admin/paths';
+
+interface Props {
+  locale: Locale;
+  rows: ReservationWithPeople[];
+  back: string;
+  actions?: boolean;
+  showTrip?: boolean;
+  bulkFormId?: string;
+  isOwner?: boolean;
+}
+const { locale, rows, back, actions = false, showTrip = true, bulkFormId, isOwner = false } = Astro.props;
+const t = adminT(locale);
+const methods = ['baridimob', 'ccp', 'cash', 'other'] as const;
+const now = Date.now();
+const effective = (r: ReservationWithPeople) =>
+  r.status === 'pending' && r.hold_expires_at && Date.parse(r.hold_expires_at) <= now ? 'expired' : r.status;
+---
+
+{
+  rows.length === 0 ? (
+    <p class="muted">{t('res.empty')}</p>
+  ) : (
+    <table class="atable" data-reservations>
+      <thead>
+        <tr>
+          {bulkFormId && <th scope="col"><span class="visually-hidden">{t('res.selectAll')}</span></th>}
+          <th scope="col">{t('res.code')}</th>
+          <th scope="col">{t('res.name')}</th>
+          <th scope="col">{t('res.phone')}</th>
+          <th scope="col">{t('res.wilaya')}</th>
+          {showTrip && <th scope="col">{t('res.trip')}</th>}
+          <th scope="col">{t('res.status')}</th>
+          <th scope="col">{t('res.payment')}</th>
+          {actions && <th scope="col">{t('res.actions')}</th>}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => {
+          const status = effective(r);
+          const w = r.member ? getWilaya(r.member.wilaya_code) : undefined;
+          const wa = whatsappLink(r.member?.phone);
+          const common = (action: string) => (
+            <>
+              <input type="hidden" name="lang" value={locale} />
+              <input type="hidden" name="back" value={back} />
+              <input type="hidden" name="id" value={r.id} />
+              <input type="hidden" name="trip_id" value={r.trip_id} />
+              <input type="hidden" name="action" value={action} />
+            </>
+          );
+          return (
+            <tr data-reservation={r.code} data-status={status}>
+              {bulkFormId && (
+                <td data-label="">
+                  <input
+                    type="checkbox"
+                    name="ids"
+                    value={r.id}
+                    form={bulkFormId}
+                    class="bulk-check"
+                    aria-label={t('res.select', { code: r.code })}
+                  />
+                </td>
+              )}
+              <td data-label={t('res.code')}>
+                <span class="mono">{r.code}</span>
+                <div class="muted-sm">{formatDateTime(r.created_at, locale)}</div>
+              </td>
+              <td data-label={t('res.name')}>
+                {r.member ? (
+                  <a href={adminPath(locale, `/members/${r.member.id}/`)}>{r.member.full_name}</a>
+                ) : (
+                  <span class="muted">{t('res.anonymised')}</span>
+                )}
+                {r.member && <div class="muted-sm">{r.member.age}</div>}
+              </td>
+              <td data-label={t('res.phone')}>
+                {r.member && <span class="mono">{r.member.phone}</span>}
+                {wa && (
+                  <div>
+                    <a href={wa} target="_blank" rel="noopener" class="muted-sm">
+                      {t('res.whatsapp')}
+                    </a>
+                  </div>
+                )}
+              </td>
+              <td data-label={t('res.wilaya')}>{w ? wilayaLabel(w, locale) : '—'}</td>
+              {showTrip && (
+                <td data-label={t('res.trip')}>
+                  {r.trip && <a href={adminPath(locale, `/trips/${r.trip.id}/reservations/`)}>{locale === 'ar' ? r.trip.title_ar : r.trip.title_en}</a>}
+                </td>
+              )}
+              <td data-label={t('res.status')}>
+                <span class="pill" data-status={status}>
+                  {t(`rs.${status}` as 'rs.pending')}
+                </span>
+                {status === 'pending' && r.hold_expires_at && (
+                  <div class="muted-sm">
+                    {t('res.hold')}: {formatDateTime(r.hold_expires_at, locale)}
+                  </div>
+                )}
+              </td>
+              <td data-label={t('res.payment')}>
+                {r.payment_method ? `${t(`method.${r.payment_method}` as 'method.cash')} · ${r.amount_paid_da ?? 0} DA` : '—'}
+                {r.admin_note && <div class="muted-sm">{r.admin_note}</div>}
+              </td>
+              {actions && (
+                <td data-label="">
+                  <details class="action-menu">
+                    <summary>{t('res.actions')}</summary>
+                    <div class="action-menu__body">
+                      {['pending', 'waitlist', 'expired'].includes(status) && (
+                        <form method="post" action="/admin/api/reservations/" class="inline-form">
+                          {common('confirm')}
+                          <label class="field__label" for={`m-${r.id}`}>{t('res.method')}</label>
+                          <select class="field__input" id={`m-${r.id}`} name="method" required>
+                            {methods.map((m) => (
+                              <option value={m}>{t(`method.${m}`)}</option>
+                            ))}
+                          </select>
+                          <label class="field__label" for={`a-${r.id}`}>{t('res.amount')}</label>
+                          <input class="field__input" id={`a-${r.id}`} name="amount" inputmode="numeric" pattern="[0-9]*" required />
+                          {isOwner && (
+                            <label class="checks">
+                              <input type="checkbox" name="override" value="1" /> {t('res.override')}
+                            </label>
+                          )}
+                          <button class="btn btn-primary btn-sm" type="submit">{t('res.confirm')}</button>
+                        </form>
+                      )}
+                      {status === 'waitlist' && (
+                        <form method="post" action="/admin/api/reservations/">
+                          {common('promote')}
+                          <button class="btn btn-ghost btn-sm" type="submit">{t('res.promote')}</button>
+                        </form>
+                      )}
+                      {['pending', 'confirmed', 'expired'].includes(status) && (
+                        <form method="post" action="/admin/api/reservations/">
+                          {common('waitlist')}
+                          <button class="btn btn-ghost btn-sm" type="submit">{t('res.toWaitlist')}</button>
+                        </form>
+                      )}
+                      {status === 'pending' && (
+                        <form method="post" action="/admin/api/reservations/" class="inline-form">
+                          {common('extend')}
+                          <label class="field__label" for={`h-${r.id}`}>{t('res.hours')}</label>
+                          <input class="field__input" id={`h-${r.id}`} name="hours" inputmode="numeric" value="24" pattern="[0-9]*" required />
+                          <button class="btn btn-ghost btn-sm" type="submit">{t('res.extend')}</button>
+                        </form>
+                      )}
+                      <form method="post" action="/admin/api/reservations/" class="inline-form">
+                        {common('note')}
+                        <label class="field__label" for={`n-${r.id}`}>{t('res.note')}</label>
+                        <textarea class="field__input" id={`n-${r.id}`} name="note" maxlength="2000">{r.admin_note ?? ''}</textarea>
+                        <button class="btn btn-ghost btn-sm" type="submit">{t('res.saveNote')}</button>
+                      </form>
+                      {status !== 'cancelled' && (
+                        <form method="post" action="/admin/api/reservations/" class="inline-form">
+                          {common('cancel')}
+                          <label class="field__label" for={`c-${r.id}`}>{t('res.reason')}</label>
+                          <input class="field__input" id={`c-${r.id}`} name="reason" maxlength="500" />
+                          <button class="btn btn-danger btn-sm" type="submit">{t('res.cancel')}</button>
+                        </form>
+                      )}
+                    </div>
+                  </details>
+                </td>
+              )}
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  )
+}

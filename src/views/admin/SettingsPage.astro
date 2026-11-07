@@ -1,0 +1,53 @@
+---
+/** Owner only: limits and retention (the database enforces the same ranges). */
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { adminT, type AdminKey } from '../../i18n/admin';
+import type { Locale } from '../../i18n';
+import { adminPath } from '../../lib/admin/paths';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = adminT(locale);
+const admin = Astro.locals.admin!;
+const { data: s } = await admin.supabase.from('settings').select('*').maybeSingle();
+const fields: { key: string; label: AdminKey; min: number; max: number }[] = [
+  { key: 'max_pending_per_person', label: 'set.maxPending', min: 1, max: 20 },
+  { key: 'default_hold_hours', label: 'set.hold', min: 1, max: 336 },
+  { key: 'retention_months', label: 'set.retention', min: 1, max: 120 },
+  { key: 'max_gallery_images', label: 'set.gallery', min: 1, max: 500 },
+  { key: 'min_age', label: 'set.minAge', min: 10, max: 99 },
+  { key: 'max_age', label: 'set.maxAge', min: 10, max: 120 },
+];
+---
+
+<AdminLayout locale={locale} title={t('set.title')}>
+  <h1>{t('set.title')}</h1>
+  <form class="form panel" method="post" action="/admin/api/settings/" data-settings-form>
+    <input type="hidden" name="lang" value={locale} />
+    <input type="hidden" name="back" value={adminPath(locale, '/settings/')} />
+    <div class="grid-auto">
+      {
+        fields.map((f) => (
+          <div class="field">
+            <label class="field__label" for={`s-${f.key}`}>{t(f.label)}</label>
+            <input
+              class="field__input"
+              id={`s-${f.key}`}
+              name={f.key}
+              type="number"
+              min={f.min}
+              max={f.max}
+              required
+              value={(s as Record<string, unknown> | null)?.[f.key] as number}
+            />
+          </div>
+        ))
+      }
+    </div>
+    <div class="sticky-actions">
+      <button class="btn btn-primary" type="submit">{t('save')}</button>
+    </div>
+  </form>
+</AdminLayout>

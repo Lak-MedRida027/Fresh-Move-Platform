@@ -196,3 +196,25 @@ An automated review flagged three weaknesses; all fixed with tests in `tests/api
   `{ ok: true, existing: true }`, and the page says "you already have a booking; use your code or DM us".
   Migration `20261107000400` stops public forms (reservation and membership) from changing an existing
   member's details; admins still can. Tests cover both (API, DB and e2e).
+
+## Phase 5: admin core
+
+- **`ResponseSentError` on admin pages.** Views rendered inside the layout called `Astro.redirect` or set
+  `Astro.response.status` after streaming had started. All access decisions (session, idle timeout, MFA
+  level, role, owner-only pages) moved into middleware, which answers before any rendering.
+- **Middleware type errors.** The admin guard was an inline arrow inside `onRequest`; TypeScript couldn't
+  narrow its return type. Now a plain `guardAdmin(context, next): Promise<Response>` function.
+- **Admin e2e logins hit the login rate limit (`RL_LOGIN`).** Every test signed in from scratch. Tests now
+  cache session cookies per browser project and role, and the local limit is 20 per minute.
+- **Flaky MFA logins in parallel tests.** Supabase rejects a TOTP code that was already used (replay
+  protection), so two projects signing in as the same admin in the same 30 s window failed. Reproduced with
+  a small concurrent script. Each Playwright project now has its own owner and organiser accounts.
+- **axe: `scrollable-region-focusable` and `aria-prohibited-attr` on the audit log.** The before/after diff
+  `<pre>` scrolled but couldn't be focused. It's now inside a focusable, labelled `role="region"`.
+- **Storage size read backwards in Darja** (`GB 1 من MB 1,2`). The bidi algorithm reordered the Latin unit.
+  `formatBytes` now wraps the value in a left-to-right isolate for Darja. Seen on the phone screenshots.
+- **e2e setup failed on a repeat run** ("a user with this email address has already been registered").
+  The fixtures deleted the previous run's test admins before creating new ones, and the database refused
+  to delete the last owner (the "keep one owner" rule). The fixtures now create the new accounts first
+  (fresh addresses each run), then delete the old ones, and fail loudly if a delete fails.
+- **Known, for phase 6:** deleting a trip doesn't yet delete its photos from storage.

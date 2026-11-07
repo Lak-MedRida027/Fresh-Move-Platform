@@ -1,0 +1,22 @@
+---
+import { adminT } from '../../i18n/admin';
+import type { Locale } from '../../i18n';
+import { adminPath } from '../../lib/admin/paths';
+
+interface Props {
+  locale: Locale;
+  tripId: string;
+  current: 'details' | 'photos' | 'reservations';
+}
+const { locale, tripId, current } = Astro.props;
+const t = adminT(locale);
+const tabs = [
+  { key: 'details', href: adminPath(locale, `/trips/${tripId}/`), label: t('tab.details') },
+  { key: 'photos', href: adminPath(locale, `/trips/${tripId}/photos/`), label: t('tab.photos') },
+  { key: 'reservations', href: adminPath(locale, `/trips/${tripId}/reservations/`), label: t('tab.reservations') },
+] as const;
+---
+
+<nav class="tabs" aria-label={t('nav.trips')}>
+  {tabs.map((tab) => <a href={tab.href} aria-current={tab.key === current ? 'page' : undefined}>{tab.label}</a>)}
+</nav>

@@ -12,7 +12,7 @@
   // per-code limits live in the database (hit_rate_limit).
   "ratelimits": [
     { "name": "RL_FORMS", "namespace_id": "4101", "simple": { "limit": 20, "period": 60 } },
-    { "name": "RL_LOGIN", "namespace_id": "4102", "simple": { "limit": 10, "period": 60 } }
+    { "name": "RL_LOGIN", "namespace_id": "4102", "simple": { "limit": 20, "period": 60 } }
   ]
   // Secrets (wrangler secret put …): SUPABASE_SERVICE_ROLE_KEY, TURNSTILE_SECRET_KEY, CRON_SECRET.
   // Public values are build-time PUBLIC_* variables (.env), see .env.example.
