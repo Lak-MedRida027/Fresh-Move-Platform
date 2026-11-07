@@ -29,6 +29,10 @@
     "test:db": "node scripts/with-local-supabase.mjs vitest run --config vitest.db.config.ts",
     "db:seed": "node scripts/with-local-supabase.mjs node scripts/seed-trips.ts",
     "setup:local": "node scripts/setup-local-env.mjs",
+    "backup": "node scripts/backup.mjs",
+    "backup:keygen": "node scripts/backup-keygen.mjs",
+    "backup:test": "node scripts/backup-restore-test.mjs",
+    "restore": "node scripts/restore.mjs",
     "cf:types": "wrangler types --include-runtime=false",
     "deploy": "npm run build && wrangler deploy"
   },
@@ -49,6 +53,7 @@
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.65.0",
     "@supabase/supabase-js": "^2.119.0",
+    "age-encryption": "0.3.1",
     "eslint": "^10.14.0",
     "eslint-plugin-astro": "^3.2.1",
     "globals": "^17.14.0",

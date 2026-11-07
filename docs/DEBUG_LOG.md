@@ -273,3 +273,39 @@ An automated review flagged three weaknesses; all fixed with tests in `tests/api
   page: the page had loaded, but a trip-card image from the local storage container (busy with the photo
   upload tests running in parallel) kept the network from going quiet. The test doesn't need network
   silence: a CSP violation fires when a request starts. It now waits for `load` plus a short pause.
+
+## Phase 8: jobs and backups
+
+- **Retention left personal data in the audit log.** Bookings were anonymised after 12 months, but every
+  admin change had copied the row (name, phone, notes) into `audit_log`, which kept it forever. The daily
+  `apply_retention()` (replaces `anonymise_old_reservations()`) now also redacts audit entries older than
+  the retention period, and a member delete redacts every entry about them.
+- **A privacy delete still left the member id in one audit entry.** The foreign key's `on delete set null`
+  updated their bookings, and Postgres writes the audit rows of a cascaded update only after all the
+  delete's own triggers have run, so the redaction ran too early. The delete trigger now unlinks the
+  bookings itself (before the delete); the foreign key then has nothing to do. Found by the DB test.
+- **Cron failures were invisible.** Jobs ran in `waitUntil` and only logged. Each run is now recorded in
+  `job_runs`; the admin overview shows the last run and warns when a job is late or failed.
+- **Orphan photo files** (an upload interrupted between storage and the database row) were never cleaned.
+  `orphan_image_objects()` finds files no row points to (older than a day, so uploads in progress are
+  safe); the daily job removes them and refuses if more than half the files look orphaned (a bug, not
+  leftovers).
+- **Backups:** `supabase db dump` (roles, schema, data, migration history) + photo files, encrypted with
+  `age` (`age-encryption`, the reference JS implementation, so the same code runs on Windows, CI and the
+  weekly job). Sessions, refresh tokens and other short-lived auth rows are left out.
+- **Restore failed: "permission denied for table buckets_vectors".** The data dump includes Supabase's
+  internal storage tables (vectors, analytics, multipart uploads), which the `postgres` role can't write.
+  They're empty for us; the restore loads only `public`, `auth` and `storage.objects`, and stops if a
+  skipped table has rows.
+- **`tar: Cannot connect to C: resolve failed`.** GNU tar (first on PATH in Git Bash) reads `C:` in an
+  absolute path as a remote host. The scripts call tar with relative paths from a working directory,
+  which works with GNU tar and Windows' bsdtar.
+- **The key generator thought a key on another drive was inside the project** (`path.relative` returns an
+  absolute path across Windows drives). Fixed; it refuses only paths really inside the project.
+- **Restore round trip tested** (`npm run backup:test`, now in CI): backup → wipe → restore, all counts and
+  the audit id sequence match (542 trips, 736 members, 801 bookings, 124 accounts, 255 photo files).
+- **Public pages timed out in e2e (axe on `/` and `/trips/`, page loads in the admin flow), more each run.**
+  The local database had ~590 trips: the DB tests' `makeTrip` created public "test trips" and never deleted
+  them, and the e2e suite uses the same database, so the home and trips pages rendered hundreds of cards.
+  This was also behind the borderline timeouts seen in phase 7. Each DB test file now removes what it
+  created (trips with their bookings and photo files, members, test accounts) in `tests/db/setup.ts`.

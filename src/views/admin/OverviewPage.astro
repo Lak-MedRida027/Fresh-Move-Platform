@@ -6,7 +6,7 @@ import { adminT } from '../../i18n/admin';
 import type { Locale } from '../../i18n';
 import { formatBytes, loadOverview } from '../../lib/admin/data';
 import { adminPath } from '../../lib/admin/paths';
-import { formatDateRange } from '../../lib/dates';
+import { formatDateRange, formatDateTime } from '../../lib/dates';
 
 interface Props {
   locale: Locale;
@@ -19,6 +19,7 @@ const back = adminPath(locale, '/');
 const used = data.storage.bytes;
 const quota = data.storage.quota_bytes || 1073741824;
 const percent = Math.round((used / quota) * 100);
+const jobsBad = data.jobs.some((j) => j.state === 'late' || j.state === 'failed');
 ---
 
 <AdminLayout locale={locale} title={t('overview.title')}>
@@ -41,6 +42,7 @@ const percent = Math.round((used / quota) * 100);
     </div>
   </div>
   {percent >= 80 && <p class="admin-flash admin-flash--error" role="status" data-storage-warning>{t('overview.storageWarn')}</p>}
+  {jobsBad && <p class="admin-flash admin-flash--error" role="status" data-jobs-warning>{t('overview.jobsWarn')}</p>}
 
   <section class="panel" aria-labelledby="ov-upcoming">
     <div class="panel__head">
@@ -76,5 +78,27 @@ const percent = Math.round((used / quota) * 100);
   <section class="panel" aria-labelledby="ov-latest">
     <h2 id="ov-latest">{t('overview.latest')}</h2>
     <ReservationTable locale={locale} rows={data.latest} back={back} />
+  </section>
+
+  <section class="panel" aria-labelledby="ov-jobs">
+    <h2 id="ov-jobs">{t('overview.jobs')}</h2>
+    <ul class="job-list">
+      {
+        data.jobs.map((j) => (
+          <li data-job={j.job} data-state={j.state}>
+            <span>{t(j.job === 'frequent' ? 'overview.job.frequent' : 'overview.job.daily')}</span>
+            <span class="muted-sm">
+              {j.last ? t('overview.jobLast', { when: formatDateTime(j.last, locale) }) : t('overview.jobNever')}
+              {j.state !== 'never' && (
+                <>
+                  {' · '}
+                  <strong>{t(j.state === 'ok' ? 'overview.jobOk' : j.state === 'late' ? 'overview.jobLate' : 'overview.jobFailed')}</strong>
+                </>
+              )}
+            </span>
+          </li>
+        ))
+      }
+    </ul>
   </section>
 </AdminLayout>

@@ -318,29 +318,103 @@ describe('status, membership, jobs', () => {
     expect(results).toEqual([true, true, true, false]);
   });
 
-  it('retention job anonymises old reservations but keeps counts', async () => {
-    const trip = await makeTrip();
-    const r = await reserve(trip.id);
-    await service.from('reservations').update({ admin_note: 'paid at the bus' }).eq('code', r.code);
-    await service.from('trips').update({ start_date: '2020-01-01', end_date: '2020-01-02', status: 'completed' }).eq('id', trip.id);
-    const { error } = await service.rpc('anonymise_old_reservations');
-    expect(error).toBeNull();
-    const row = await reservationByCode(r.code);
-    expect(row.member_id).toBeNull();
-    expect(row.admin_note).toBeNull();
-    expect(row.anonymised_at).not.toBeNull();
-    expect(row.status).toBe('pending');
-  });
-
-  it('deleting a member (owner) keeps the trip history', async () => {
+  it('retention anonymises old bookings and strips personal details from old audit entries', async () => {
     const trip = await makeTrip();
     const p = phone();
     const r = await reserve(trip.id, p);
+    const res = await reservationByCode(r.code);
     const { data: m } = await service.from('members').select('id').eq('phone', p).single();
+    // Admin activity that copies personal data into the audit log.
+    await owner.client.from('reservations').update({ admin_note: 'paid at the bus' }).eq('id', res.id);
+    await owner.client.from('members').update({ notes: 'call after 6pm' }).eq('id', m!.id);
+    await owner.client.rpc('log_export', { p_entity: 'reservations', p_entity_id: trip.id, p_rows: 1, p_filter: { q: 'ali' } });
+    // A recent entry about someone else must stay as it is.
+    const other = await reserve(trip.id);
+    const otherRes = await reservationByCode(other.code);
+    await owner.client.from('reservations').update({ admin_note: 'recent note' }).eq('id', otherRes.id);
+
+    // The trip ended long ago; the entries about this person are old too.
+    await service.from('trips').update({ start_date: '2020-01-01', end_date: '2020-01-02', status: 'completed' }).eq('id', trip.id);
+    for (const [entity, id] of [['reservations', res.id], ['members', m!.id], ['reservations', trip.id]] as const) {
+      await service.from('audit_log').update({ created_at: '2020-02-01T00:00:00Z' }).eq('entity', entity).eq('entity_id', id);
+    }
+
+    const { data, error } = await service.rpc('apply_retention');
+    expect(error).toBeNull();
+    expect(data).toMatchObject({ anonymised: expect.any(Number), audit_redacted: expect.any(Number), rate_limits_deleted: expect.any(Number) });
+    expect((data as { audit_redacted: number }).audit_redacted).toBeGreaterThanOrEqual(3);
+
+    const row = await reservationByCode(r.code);
+    expect(row).toMatchObject({ member_id: null, admin_note: null, status: 'pending' });
+    expect(row.anonymised_at).not.toBeNull();
+
+    const audit = async (entity: string, id: string) =>
+      (await service.from('audit_log').select('action, before, after, redacted_at, actor_user_id').eq('entity', entity).eq('entity_id', id)).data ?? [];
+    const resEntries = await audit('reservations', res.id);
+    expect(resEntries.length).toBeGreaterThan(0);
+    for (const e of resEntries) {
+      expect(e.redacted_at).not.toBeNull();
+      expect(JSON.stringify([e.before, e.after])).not.toMatch(/paid at the bus|member_id/);
+      expect(e.after).toMatchObject({ status: 'pending' }); // the fact stays, the person goes
+      expect(e.actor_user_id).toBe(owner.id);
+    }
+    for (const e of await audit('members', m!.id)) expect(e).toMatchObject({ before: null, after: null });
+    const [exp] = (await audit('reservations', trip.id)).filter((e) => e.action === 'export');
+    expect(exp!.after).toEqual({ rows: 1 });
+
+    const [recent] = await audit('reservations', otherRes.id);
+    expect(recent).toMatchObject({ redacted_at: null, after: { admin_note: 'recent note' } });
+  });
+
+  it('privacy delete: bookings stay for statistics, notes and audit details about the person go', async () => {
+    const trip = await makeTrip();
+    const p = phone();
+    const r = await reserve(trip.id, p);
+    const res = await reservationByCode(r.code);
+    const { data: m } = await service.from('members').select('id').eq('phone', p).single();
+    await owner.client.from('reservations').update({ admin_note: 'Sara, sister of Amine' }).eq('id', res.id);
+    await owner.client.from('members').update({ notes: 'vegetarian' }).eq('id', m!.id);
+
     const { error } = await owner.client.from('members').delete().eq('id', m!.id);
     expect(error).toBeNull();
     const row = await reservationByCode(r.code);
-    expect(row.member_id).toBeNull();
-    expect(row.trip_id).toBe(trip.id);
+    expect(row).toMatchObject({ member_id: null, admin_note: null, trip_id: trip.id, status: 'pending' });
+
+    const { data: resEntries } = await service.from('audit_log').select('before, after').eq('entity', 'reservations').eq('entity_id', res.id);
+    expect(resEntries!.length).toBeGreaterThan(0);
+    expect(JSON.stringify(resEntries)).not.toMatch(/Sara|member_id|admin_note/);
+    const { data: memEntries } = await service.from('audit_log').select('action, before, after, actor_user_id').eq('entity', 'members').eq('entity_id', m!.id);
+    expect(memEntries!.map((e) => e.action).sort()).toEqual(['delete', 'update']);
+    for (const e of memEntries!) expect(e).toMatchObject({ before: null, after: null, actor_user_id: owner.id });
+    expect(JSON.stringify(memEntries)).not.toContain(p);
+  });
+
+  it('orphan photo files: only files no photo row points to, and only older ones', async () => {
+    const trip = await makeTrip({ status: 'draft' });
+    const kept = crypto.randomUUID();
+    const path = (id: string, size: string) => `trips/${trip.id}/${id}-${size}.webp`;
+    await service.from('trip_images').insert({
+      id: kept, trip_id: trip.id, kind: 'poster', width: 100, height: 100,
+      path_sm: path(kept, 'sm'), path_md: path(kept, 'md'), path_lg: path(kept, 'lg'),
+    });
+    const orphan = path(crypto.randomUUID(), 'md');
+    const bytes = new Blob([new Uint8Array([82, 73, 70, 70])], { type: 'image/webp' });
+    for (const name of [path(kept, 'sm'), orphan]) {
+      expect((await service.storage.from('trip-images').upload(name, bytes, { contentType: 'image/webp' })).error).toBeNull();
+    }
+    try {
+      const now = await service.rpc('orphan_image_objects', { p_min_age: '0 seconds', p_limit: 5000 });
+      expect(now.error).toBeNull();
+      const names = now.data!.map((r) => r.name);
+      expect(names).toContain(orphan);
+      expect(names).not.toContain(path(kept, 'sm'));
+      expect(now.data![0]!.total_objects).toBeGreaterThanOrEqual(2);
+      // Default: a day old at least, so uploads in progress are never touched.
+      const fresh = await service.rpc('orphan_image_objects');
+      expect(fresh.data!.map((r) => r.name)).not.toContain(orphan);
+    } finally {
+      await service.storage.from('trip-images').remove([path(kept, 'sm'), orphan]);
+      await service.from('trips').delete().eq('id', trip.id);
+    }
   });
 });

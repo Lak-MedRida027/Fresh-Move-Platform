@@ -9,6 +9,29 @@ import type { AdminClient } from '../supabase/server';
 export type TripRow = Database['public']['Tables']['trips']['Row'];
 export type ReservationRow = Database['public']['Tables']['reservations']['Row'];
 export type MemberRow = Database['public']['Tables']['members']['Row'];
+export type JobRunRow = Database['public']['Tables']['job_runs']['Row'];
+
+/** How late a job may be before the overview warns: 15-min job → 1 h, daily → 36 h. */
+export const JOB_MAX_AGE_MS = { frequent: 3_600_000, daily: 36 * 3_600_000 } as const;
+
+export interface JobHealth {
+  job: 'frequent' | 'daily';
+  /** never: hasn't run yet (normal before the first deploy); ok; late; failed. */
+  state: 'never' | 'ok' | 'late' | 'failed';
+  last: string | null;
+}
+
+export function jobHealth(rows: Pick<JobRunRow, 'job' | 'started_at' | 'finished_at' | 'ok'>[], now = Date.now()): JobHealth[] {
+  return (['frequent', 'daily'] as const).map((job) => {
+    const r = rows.find((x) => x.job === job);
+    if (!r) return { job, state: 'never', last: null };
+    const last = r.finished_at ?? r.started_at;
+    if (r.ok === false) return { job, state: 'failed', last };
+    // Not run recently, or started an hour ago and never finished (crashed mid-run): late.
+    const age = now - Date.parse(last);
+    return { job, state: age > JOB_MAX_AGE_MS[job] || (!r.finished_at && age > 3_600_000) ? 'late' : 'ok', last };
+  });
+}
 
 export interface SeatCounts {
   confirmed: number;
@@ -48,7 +71,7 @@ export async function loadOverview(sb: AdminClient) {
   const upcoming = (trips ?? []).map((t) => ({ trip: t, counts: seatCounts(t, (res ?? []).filter((r) => r.trip_id === t.id), now) }));
 
   const in12h = new Date(now + 12 * 3_600_000).toISOString();
-  const [{ count: pending }, { count: waitlist }, { data: expiring }, { data: latest }, { data: storage }] = await Promise.all([
+  const [{ count: pending }, { count: waitlist }, { data: expiring }, { data: latest }, { data: storage }, { data: jobs }] = await Promise.all([
     sb.from('reservations').select('id', { count: 'exact', head: true }).eq('status', 'pending').gt('hold_expires_at', new Date(now).toISOString()),
     sb.from('reservations').select('id', { count: 'exact', head: true }).eq('status', 'waitlist'),
     sb
@@ -61,6 +84,7 @@ export async function loadOverview(sb: AdminClient) {
       .limit(20),
     sb.from('reservations').select(RES_SELECT).order('created_at', { ascending: false }).limit(10),
     sb.rpc('admin_storage_usage'),
+    sb.from('job_runs').select('job, started_at, finished_at, ok'),
   ]);
   return {
     upcoming,
@@ -68,6 +92,7 @@ export async function loadOverview(sb: AdminClient) {
     waitlist: waitlist ?? 0,
     expiring: (expiring ?? []) as unknown as ReservationWithPeople[],
     latest: (latest ?? []) as unknown as ReservationWithPeople[],
+    jobs: jobHealth(jobs ?? [], now),
     storage: (storage ?? { bytes: 0, objects: 0, quota_bytes: 1073741824 }) as { bytes: number; objects: number; quota_bytes: number },
   };
 }

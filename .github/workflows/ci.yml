@@ -63,6 +63,10 @@ jobs:
       - name: Database tests (seats, concurrency, RLS, storage)
         run: npm run test:db
 
+      # Backup → wipe → restore of the local stack with a throwaway key; every count must match.
+      - name: Backup and restore round trip
+        run: npm run backup:test
+
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v4

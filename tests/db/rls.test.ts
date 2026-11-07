@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { anon, denied, makeTrip, makeUser, phone, reserve, reserveArgs, service, type DB, type TestUser } from './helpers';
 
-type Table = 'members' | 'reservations' | 'admin_users' | 'audit_log' | 'settings' | 'rate_limits';
-const PRIVATE_TABLES: Table[] = ['members', 'reservations', 'admin_users', 'audit_log', 'settings', 'rate_limits'];
+type Table = 'members' | 'reservations' | 'admin_users' | 'audit_log' | 'settings' | 'rate_limits' | 'job_runs';
+const PRIVATE_TABLES: Table[] = ['members', 'reservations', 'admin_users', 'audit_log', 'settings', 'rate_limits', 'job_runs'];
 
 let user: TestUser; // signed in, not an admin
 let noMfa: TestUser; // admin row, but session without MFA (aal1)
@@ -31,6 +31,9 @@ beforeAll(async () => {
   memberId = m!.id;
   const { data: res } = await service.from('reservations').select('id').eq('code', r.code).single();
   reservationId = res!.id;
+  // A job run to (fail to) read.
+  const at = new Date().toISOString();
+  await service.from('job_runs').upsert({ job: 'frequent', started_at: at, finished_at: at, ok: true, result: { expired: 0 } });
   // Something in the audit log to (fail to) read.
   await owner.client.from('trips').update({ featured: true }).eq('id', open.id);
 });
@@ -75,7 +78,8 @@ async function expectNoAccess(client: DB, label: string) {
     ['reservation_status', { p_phone: phone(), p_code: 'FM-AAAAA' }],
     ['hit_rate_limit', { p_key: 'x', p_max: 1, p_window_seconds: 60 }],
     ['expire_holds', {}],
-    ['anonymise_old_reservations', {}],
+    ['apply_retention', {}],
+    ['orphan_image_objects', {}],
   ] as const) {
     const res = await client.rpc(fn as never, args as never);
     expect(res.error, `${label} rpc ${fn}`).not.toBeNull();
@@ -127,6 +131,8 @@ describe('RLS: admins', () => {
     expect(upd.data).toHaveLength(1);
     const note = await c.from('reservations').update({ admin_note: 'called' }).eq('id', reservationId).select();
     expect(note.data).toHaveLength(1);
+    expect((await c.from('job_runs').select('job').eq('job', 'frequent')).data).toEqual([{ job: 'frequent' }]);
+    expect(denied(await c.from('job_runs').update({ ok: false }).eq('job', 'frequent').select())).toBe(true);
   });
 
   it('organizer cannot change reservation status directly (only via functions)', async () => {

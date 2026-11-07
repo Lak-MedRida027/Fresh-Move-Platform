@@ -68,8 +68,12 @@ export async function makeUser(opts: { role?: 'owner' | 'organizer'; mfa?: boole
 // ---------------------------------------------------------------------------
 // Data
 // ---------------------------------------------------------------------------
+/** Phones handed out here: their members are deleted after each test file. */
+const phones = new Set<string>();
 export function phone(): string {
-  return `+2135${String(randomInt(0, 99_999_999)).padStart(8, '0')}`;
+  const p = `+2135${String(randomInt(0, 99_999_999)).padStart(8, '0')}`;
+  phones.add(p);
+  return p;
 }
 
 function dateFromToday(days: number): string {
@@ -148,4 +152,36 @@ export function denied(result: { error: unknown; data: unknown }): boolean {
   if (result.error) return true;
   if (Array.isArray(result.data)) return result.data.length === 0;
   return result.data == null;
+}
+
+// ---------------------------------------------------------------------------
+// Cleanup (tests/db/setup.ts runs this after every test file). The e2e suite
+// uses the same local database: leftover public "test trips" made the public
+// pages heavier with every run, until they timed out.
+// ---------------------------------------------------------------------------
+export async function cleanupTestData(): Promise<void> {
+  const { data: trips } = await service.from('trips').select('id').like('slug', 'test-trip-%');
+  const ids = (trips ?? []).map((t) => t.id);
+  for (let i = 0; i < ids.length; i += 100) {
+    const chunk = ids.slice(i, i + 100);
+    await service.from('trips').update({ cover_image_id: null }).in('id', chunk);
+    await service.from('reservations').delete().in('trip_id', chunk);
+    for (const id of chunk) {
+      const { data: files } = await service.storage.from('trip-images').list(`trips/${id}`);
+      if (files?.length) await service.storage.from('trip-images').remove(files.map((x) => `trips/${id}/${x.name}`));
+    }
+    const { error } = await service.from('trips').delete().in('id', chunk);
+    if (error) throw new Error(`cleanup trips: ${error.message}`);
+  }
+  const used = [...phones];
+  for (let i = 0; i < used.length; i += 100) await service.from('members').delete().in('phone', used.slice(i, i + 100));
+  phones.clear();
+  // Test accounts. (Deleting the last owner is refused by the database; the e2e owners
+  // always exist, and a refused delete only leaves that one account behind.)
+  for (let page = 1; ; page++) {
+    const { data } = await service.auth.admin.listUsers({ page, perPage: 1000 });
+    const users = (data?.users ?? []).filter((u) => /^test-[0-9a-f-]{36}@example.test$/.test(u.email ?? ''));
+    for (const u of users) await service.auth.admin.deleteUser(u.id);
+    if ((data?.users.length ?? 0) < 1000) break;
+  }
 }

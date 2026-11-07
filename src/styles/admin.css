@@ -622,3 +622,22 @@ fieldset.checks legend {
   color: var(--fg);
   font-weight: 600;
 }
+
+/* Background jobs (overview) */
+.job-list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.job-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+}
+.job-list li[data-state='late'] strong,
+.job-list li[data-state='failed'] strong {
+  color: var(--error);
+}

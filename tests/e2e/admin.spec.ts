@@ -138,6 +138,9 @@ test.describe('admin flows', () => {
   });
 
   test('owner: create a trip, publish it, a visitor books, confirm, add a DM booking, complete it', async ({ page }, info) => {
+    // The whole admin story in one test (~25 s alone, including the 3 s minimum form time and an Excel
+    // export); the default 30 s is too tight when three browsers run the suite at once.
+    test.setTimeout(90_000);
     await signIn(page, info, 'owner', '/en');
     await page.goto('/en/admin/');
     await expect(page.locator('[data-stat="pending"]')).toBeVisible();

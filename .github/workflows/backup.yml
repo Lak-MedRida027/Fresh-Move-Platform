@@ -1,0 +1,83 @@
+name: Backup
+
+# Weekly encrypted backup of the production database and trip photos.
+# Off until the repository variable BACKUP_ENABLED is "true" (set at deploy time).
+#
+# THIS REPOSITORY IS PUBLIC: anyone with a GitHub account can download artifacts
+# and read logs. The artifact only contains files encrypted with age for the
+# public key in BACKUP_AGE_RECIPIENT (decryptable only with the private key kept
+# offline) plus a manifest without personal data, and the scripts print no data.
+# See docs/BACKUP_RESTORE.md.
+#
+# Needs:
+#   secret   BACKUP_DB_URL          Supabase "Session pooler" connection string (with the database password)
+#   variable BACKUP_AGE_RECIPIENT   age public key (npm run backup:keygen)
+#   variable PUBLIC_SUPABASE_URL    https://<ref>.supabase.co (photos are public files)
+#   variable BACKUP_ENABLED         "true"
+
+on:
+  schedule:
+    - cron: '30 2 * * 0' # Sundays 02:30 UTC (03:30 in Algeria)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    if: vars.BACKUP_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check settings and hide the database password in logs
+        env:
+          BACKUP_DB_URL: ${{ secrets.BACKUP_DB_URL }}
+          BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+        run: |
+          node -e '
+            const url = process.env.BACKUP_DB_URL || "";
+            if (!/^postgres(ql)?:\/\//.test(url)) { console.error("BACKUP_DB_URL secret is missing or not a postgres URL"); process.exit(1); }
+            const pw = decodeURIComponent(new URL(url).password || "");
+            if (pw) console.log("::add-mask::" + pw);
+            if (!/^age1[0-9a-z]{20,}$/.test((process.env.BACKUP_AGE_RECIPIENT || "").trim())) { console.error("BACKUP_AGE_RECIPIENT variable is missing"); process.exit(1); }
+          '
+
+      - name: Dump, download photos, encrypt
+        env:
+          BACKUP_DB_URL: ${{ secrets.BACKUP_DB_URL }}
+          BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+          BACKUP_PHOTOS_URL: ${{ vars.PUBLIC_SUPABASE_URL }}
+        run: node scripts/backup.mjs --out backup
+
+      - name: Only encrypted files and the manifest may leave the runner
+        run: |
+          set -euo pipefail
+          for f in backup/*; do
+            case "$f" in
+              backup/manifest.json) ;;
+              *.age) head -c 21 "$f" | grep -q '^age-encryption.org/v1' || { echo "$f is not an age file"; exit 1; } ;;
+              *) echo "unexpected file $f"; exit 1 ;;
+            esac
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fresh-move-backup-${{ github.run_id }}
+          path: backup/
+          retention-days: 30
+          if-no-files-found: error
+          compression-level: 0 # encrypted data doesn't compress

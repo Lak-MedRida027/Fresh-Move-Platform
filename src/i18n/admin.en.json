@@ -287,5 +287,14 @@
   "exp.filters": "Filters",
   "exp.noFilter": "None (everything)",
   "exp.rows": "Rows in this file",
-  "exp.exportedAt": "Exported at"
+  "exp.exportedAt": "Exported at",
+  "overview.jobs": "Background jobs",
+  "overview.job.frequent": "Cancel unpaid holds when their time is up (every 15 min)",
+  "overview.job.daily": "Privacy clean-up, leftover photo files, keep the database awake (daily)",
+  "overview.jobLast": "Last run: {when}",
+  "overview.jobNever": "Not run yet (starts once the site is deployed).",
+  "overview.jobOk": "OK",
+  "overview.jobLate": "Late",
+  "overview.jobFailed": "Failed",
+  "overview.jobsWarn": "A background job is late or failing, so unpaid holds may not be cancelled on time. Tell whoever maintains the site (details: Cloudflare → Workers → fresh-move → Logs)."
 }

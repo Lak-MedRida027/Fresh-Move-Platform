@@ -10,7 +10,7 @@ import { totp } from '../totp';
 import sharp from 'sharp';
 import type { Database } from '../../src/lib/database.types';
 
-function readVars(file: string): Record<string, string> {
+export function readVars(file: string): Record<string, string> {
   try {
     return Object.fromEntries(
       readFileSync(file, 'utf8')

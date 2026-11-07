@@ -287,5 +287,14 @@
   "exp.filters": "البحث المستعمل",
   "exp.noFilter": "والو (كلش)",
   "exp.rows": "عدد السطور في الملف",
-  "exp.exportedAt": "تاريخ التصدير"
+  "exp.exportedAt": "تاريخ التصدير",
+  "overview.jobs": "الخدمات التلقائية",
+  "overview.job.frequent": "يلغي الحجوزات اللي فات وقتها (كل 15 دقيقة)",
+  "overview.job.daily": "تنظيف المعلومات القديمة وبقايا الصور، ويخلّي القاعدة خدّامة (كل نهار)",
+  "overview.jobLast": "آخر مرة: {when}",
+  "overview.jobNever": "مازال ما خدمش (يبدا كي يتنشر الموقع).",
+  "overview.jobOk": "مليح",
+  "overview.jobLate": "متأخر",
+  "overview.jobFailed": "ما خدمش",
+  "overview.jobsWarn": "كاين خدمة تلقائية متأخرة ولا فيها مشكل، الحجوزات اللي ما تخلّصوش ممكن ما يتلغاوش في وقتهم. قول للي يسيّر الموقع (التفاصيل في Cloudflare → Workers → fresh-move → Logs)."
 }

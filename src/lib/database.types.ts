@@ -39,14 +39,28 @@ export type Database = {
                   ]
                 },"audit_log": {
                   Row: {
-                    "action": string,"actor_user_id": string | null,"after": Json | null,"before": Json | null,"created_at": string,"entity": string,"entity_id": string | null,"id": number
+                    "action": string,"actor_user_id": string | null,"after": Json | null,"before": Json | null,"created_at": string,"entity": string,"entity_id": string | null,"id": number,"redacted_at": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "action": string,"actor_user_id"?: string | null,"after"?: Json | null,"before"?: Json | null,"created_at"?: string,"entity": string,"entity_id"?: string | null,"id"?: never
+                    "action": string,"actor_user_id"?: string | null,"after"?: Json | null,"before"?: Json | null,"created_at"?: string,"entity": string,"entity_id"?: string | null,"id"?: never,"redacted_at"?: string | null
                   }
                   Update: {
-                    "action"?: string,"actor_user_id"?: string | null,"after"?: Json | null,"before"?: Json | null,"created_at"?: string,"entity"?: string,"entity_id"?: string | null,"id"?: never
+                    "action"?: string,"actor_user_id"?: string | null,"after"?: Json | null,"before"?: Json | null,"created_at"?: string,"entity"?: string,"entity_id"?: string | null,"id"?: never,"redacted_at"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"job_runs": {
+                  Row: {
+                    "error": string | null,"finished_at": string | null,"job": string,"ok": boolean | null,"result": NonNullable<Json>,"started_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "error"?: string | null,"finished_at"?: string | null,"job": string,"ok"?: boolean | null,"result"?: NonNullable<Json>,"started_at": string
+                  }
+                  Update: {
+                    "error"?: string | null,"finished_at"?: string | null,"job"?: string,"ok"?: boolean | null,"result"?: NonNullable<Json>,"started_at"?: string
                   }
                   Relationships: [
                     
@@ -192,8 +206,8 @@ isOneToOne: false
 "admin_storage_usage":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
-"anonymise_old_reservations":
-{ Args: Record<PropertyKey, never>; Returns: number
+"apply_retention":
+{ Args: Record<PropertyKey, never>; Returns: Json
                            },
 "expire_holds":
 { Args: Record<PropertyKey, never>; Returns: number
@@ -218,6 +232,11 @@ isOneToOne: false
                            },
 "log_export":
 { Args: { "p_entity": string,"p_entity_id": string,"p_filter"?: Json,"p_rows": number }; Returns: undefined
+                           },
+"orphan_image_objects":
+{ Args: { "p_limit"?: number,"p_min_age"?: string }; Returns: {
+              "name": string,"total_objects": number
+            }[]
                            },
 "reservation_status":
 { Args: { "p_code": string,"p_phone": string }; Returns: Json
