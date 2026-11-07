@@ -72,10 +72,19 @@ describe('POST /api/reserve', () => {
     });
   });
 
-  it('waitlist and existing reservations are passed through', async () => {
-    reserve.mockResolvedValueOnce({ code: 'FM-ABCDE', status: 'waitlist', hold_expires_at: null, seats_left: 0, existing: true });
+  it('waitlist reservations are passed through', async () => {
+    reserve.mockResolvedValueOnce({ code: 'FM-ABCDE', status: 'waitlist', hold_expires_at: null, seats_left: 0, existing: false });
     const body = await (await handle(post('/api/reserve', valid))).json();
-    expect(body).toMatchObject({ status: 'waitlist', existing: true, code: 'FM-ABCDE' });
+    expect(body).toMatchObject({ status: 'waitlist', existing: false, code: 'FM-ABCDE' });
+  });
+
+  it('an existing booking is acknowledged without revealing its code, status or hold', async () => {
+    reserve.mockResolvedValueOnce({ code: 'FM-ABCDE', status: 'pending', hold_expires_at: '2026-11-16T17:00:00Z', seats_left: 3, existing: true });
+    const res = await handle(post('/api/reserve', valid));
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(JSON.parse(text)).toEqual({ ok: true, existing: true });
+    expect(text).not.toContain('FM-ABCDE');
   });
 
   it('validation errors → 400 with fields; nothing reserved', async () => {

@@ -187,3 +187,12 @@ An automated review flagged three weaknesses; all fixed with tests in `tests/api
   inside `<bdi dir="ltr">`.
 - **Known, for phase 6:** with an on-demand server build, Astro emits one stylesheet per build environment,
   so pages link two CSS files that share the base styles (~20 KB raw duplicated). Works; to optimise later.
+
+## Security review: a repeat booking revealed someone else's code
+- **Finding:** `/api/reserve` returned the existing booking's code, status and hold when a phone number
+  already had a reservation for the trip (the brief asked for this). Anyone who knows a person's phone
+  number could get their code and then their status, and could overwrite their stored name/wilaya/age.
+- **Fix (deviation from the brief, flagged to the owner):** a repeat booking now returns only
+  `{ ok: true, existing: true }`, and the page says "you already have a booking; use your code or DM us".
+  Migration `20261107000400` stops public forms (reservation and membership) from changing an existing
+  member's details; admins still can. Tests cover both (API, DB and e2e).

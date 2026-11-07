@@ -70,7 +70,8 @@ TODO(owner): review. The "How it works" steps, FAQ answer 3, footer and privacy 
 | `reserve.success.pendingTitle` | البلاصة تاعك محجوزة! 🍀 | Your seat is held! 🍀 |
 | `reserve.success.waitlistTitle` | راك في قائمة الانتظار | You're on the waitlist |
 | `reserve.success.confirmedTitle` | البلاصة تاعك مأكدة | Your seat is confirmed |
-| `reserve.success.existing` | عندك حجز من قبل لهاد الخرجة، هاهو. | You already have a booking for this trip. Here it is. |
+| `reserve.success.existingTitle` | عندك حجز من قبل لهاد الخرجة | You already have a booking for this trip |
+| `reserve.success.existingText` | كاين حجز بهاد الرقم في هاد الخرجة. استعمل الكود اللي جاك كي حجزت باش تشوف الحالة، ولا بعثلنا DM في Instagram إذا ضيّعتو. | There's already a booking with this phone number for this trip. Use the code you got when you booked to check its status, or DM us on Instagram if you lost it. |
 | `reserve.success.code` | كود الحجز تاعك | Your reservation code |
 | `reserve.success.copy` | انسخ الكود | Copy code |
 | `reserve.success.copied` | تنسخ ✓ | Copied ✓ |
@@ -402,7 +403,8 @@ TODO(owner): review. The "How it works" steps, FAQ answer 3, footer and privacy 
 | `reserve.success.pendingTitle` | البلاصة تاعك محجوزة! 🍀 | Your seat is held! 🍀 |
 | `reserve.success.waitlistTitle` | راك في قائمة الانتظار | You're on the waitlist |
 | `reserve.success.confirmedTitle` | البلاصة تاعك مأكدة | Your seat is confirmed |
-| `reserve.success.existing` | عندك حجز من قبل لهاد الخرجة، هاهو. | You already have a booking for this trip. Here it is. |
+| `reserve.success.existingTitle` | عندك حجز من قبل لهاد الخرجة | You already have a booking for this trip |
+| `reserve.success.existingText` | كاين حجز بهاد الرقم في هاد الخرجة. استعمل الكود اللي جاك كي حجزت باش تشوف الحالة، ولا بعثلنا DM في Instagram إذا ضيّعتو. | There's already a booking with this phone number for this trip. Use the code you got when you booked to check its status, or DM us on Instagram if you lost it. |
 | `reserve.success.code` | كود الحجز تاعك | Your reservation code |
 | `reserve.success.copy` | انسخ الكود | Copy code |
 | `reserve.success.copied` | تنسخ ✓ | Copied ✓ |

@@ -69,6 +69,9 @@ export function createReserveHandler(deps: ReserveDeps) {
         age: Number(body.age),
         consent: true,
       });
+      // Already booked: never reveal that booking's code, status or hold to an
+      // unauthenticated caller (anyone can type someone else's phone number).
+      if (r.existing) return json(200, { ok: true, existing: true });
       return json(200, {
         ok: true,
         code: r.code,

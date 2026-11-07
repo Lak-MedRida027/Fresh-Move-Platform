@@ -32,8 +32,21 @@ document.querySelectorAll<HTMLFormElement>('[data-reserve-form]').forEach((form)
     extraPayload: () => ({ tripId: form.dataset.tripId }),
     onSuccess: (raw) => {
       const body = raw as ReserveBody;
+      if (body.existing) {
+        // Already booked: the server doesn't reveal that booking's code (privacy).
+        $('[data-success-title]').textContent = text.existing ?? '';
+        $('[data-existing]').hidden = false;
+        $('[data-code-box]').hidden = true;
+        $('[data-next-pending]').hidden = true;
+        $('[data-proof]').hidden = true;
+        root.querySelector<HTMLElement>('[data-reserve-intro]')!.hidden = true;
+        root.querySelector<HTMLElement>('#reserve-title')!.hidden = true;
+        form.hidden = true;
+        done.hidden = false;
+        $('[data-success-title]').focus();
+        return;
+      }
       $('[data-success-title]').textContent = text[body.status] ?? text.pending ?? '';
-      $('[data-existing]').hidden = !body.existing;
       $('[data-code]').textContent = body.code;
       $('[data-status]').textContent = statusLabels[body.status] ?? body.status;
       const hold = $('[data-hold]');

@@ -34,6 +34,7 @@ const successText = {
   pending: t('reserve.success.pendingTitle'),
   waitlist: t('reserve.success.waitlistTitle'),
   confirmed: t('reserve.success.confirmedTitle'),
+  existing: t('reserve.success.existingTitle'),
   holdUntil: t('reserve.success.holdUntil', { date: '{date}' }),
   copied: t('reserve.success.copied'),
   copy: t('reserve.success.copy'),
@@ -92,9 +93,9 @@ const statusLabels = {
   <div class="reserve-done" data-success hidden>
     <Icon name="check" size={40} class="form__success-icon" />
     <h2 class="reserve-done__title" tabindex="-1" data-success-title></h2>
-    <p class="reserve-done__existing" data-existing hidden>{t('reserve.success.existing')}</p>
+    <p class="reserve-done__existing" data-existing hidden>{t('reserve.success.existingText')}</p>
 
-    <div class="reserve-done__code">
+    <div class="reserve-done__code" data-code-box>
       <p class="reserve-done__label">{t('reserve.success.code')}</p>
       <p class="reserve-done__value" dir="ltr" lang="en" data-code></p>
       <button type="button" class="btn btn-ghost reserve-done__copy" data-copy>

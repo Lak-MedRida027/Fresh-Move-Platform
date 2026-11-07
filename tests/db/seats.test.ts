@@ -70,16 +70,29 @@ describe('reserve_seat', () => {
     expect(new Set(results.map((r) => r.code)).size).toBe(1);
   });
 
-  it('upserts the member by phone and updates name / wilaya / age', async () => {
+  it('upserts the member by phone; a public booking never changes an existing member', async () => {
     const trip1 = await makeTrip();
     const trip2 = await makeTrip();
     const p = phone();
     await reserve(trip1.id, p);
-    await service.rpc('reserve_seat', { ...reserveArgs(trip2.id, p), p_full_name: 'Lina B.', p_wilaya_code: '16', p_age: 26 });
+    // Someone else typing this phone number can't rename the member.
+    await service.rpc('reserve_seat', { ...reserveArgs(trip2.id, p), p_full_name: 'Hacker Name', p_wilaya_code: '16', p_age: 60 });
     const { data } = await service.from('members').select('*').eq('phone', p);
     expect(data).toHaveLength(1);
-    expect(data![0]).toMatchObject({ full_name: 'Lina B.', wilaya_code: '16', age: 26, source: 'reservation' });
+    expect(data![0]).toMatchObject({ full_name: 'Lina Benali', wilaya_code: '05', age: 25, source: 'reservation' });
     expect(data![0]!.consent_at).not.toBeNull();
+  });
+
+  it('an admin-added booking may update the member details', async () => {
+    const trip = await makeTrip();
+    const p = phone();
+    await reserve((await makeTrip()).id, p);
+    const { error } = await organizer.client.rpc('admin_add_manual_reservation', {
+      p_trip_id: trip.id, p_full_name: 'Lina Benali-Amrani', p_phone: p, p_wilaya_code: '16', p_age: 26,
+    });
+    expect(error).toBeNull();
+    const { data } = await service.from('members').select('*').eq('phone', p).single();
+    expect(data).toMatchObject({ full_name: 'Lina Benali-Amrani', wilaya_code: '16', age: 26 });
   });
 
   it('an expired hold frees its seat even before the expiry job runs', async () => {
@@ -283,7 +296,7 @@ describe('status, membership, jobs', () => {
     expect(wrongCode.data).toBeNull();
   });
 
-  it('join_member upserts by phone and keeps the first consent time', async () => {
+  it('join_member upserts by phone, keeps the first consent and never overwrites details', async () => {
     const p = phone();
     const first = await service.rpc('join_member', {
       p_full_name: 'Sara', p_phone: p, p_wilaya_code: '06', p_age: 22, p_consent: true,
@@ -295,7 +308,7 @@ describe('status, membership, jobs', () => {
     });
     expect(second.data).toMatchObject({ ok: true, new: false });
     const { data: m2 } = await service.from('members').select('*').eq('phone', p).single();
-    expect(m2).toMatchObject({ full_name: 'Sara Amrani', age: 23, source: 'join_form', consent_at: m1!.consent_at });
+    expect(m2).toMatchObject({ full_name: 'Sara', age: 22, source: 'join_form', consent_at: m1!.consent_at });
   });
 
   it('hit_rate_limit allows N hits per window, then refuses', async () => {

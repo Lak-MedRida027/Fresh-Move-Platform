@@ -62,7 +62,7 @@ for (const [lang, prefix] of [
       await expect(result.locator('[data-r-trip]')).toHaveAttribute('href', `${prefix}/trips/${E2E.open}/`);
     });
 
-    test('reserving twice with the same phone returns the same code', async ({ page }) => {
+    test('reserving twice with the same phone says "already booked" without revealing the code', async ({ page }) => {
       const phone = randomPhone();
       await page.goto(`${prefix}/trips/${E2E.open}/`);
       await fillPerson(page, phone);
@@ -71,10 +71,11 @@ for (const [lang, prefix] of [
       const first = await page.locator('[data-code]').textContent();
 
       await page.goto(`${prefix}/trips/${E2E.open}/`);
-      await fillPerson(page, phone);
+      await fillPerson(page, phone, 'Zz Someone Else');
       await page.locator('[data-reserve-form] [data-submit]').click();
       await expect(page.locator('[data-existing]')).toBeVisible({ timeout: 20_000 });
-      await expect(page.locator('[data-code]')).toHaveText(first!);
+      await expect(page.locator('[data-code-box]')).toBeHidden();
+      await expect(page.locator('body')).not.toContainText(first!);
     });
 
     test('full trip offers the waitlist and explains it', async ({ page }) => {
