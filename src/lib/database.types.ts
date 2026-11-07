@@ -217,7 +217,7 @@ isOneToOne: false
 { Args: Record<PropertyKey, never>; Returns: string
                            },
 "log_export":
-{ Args: { "p_entity": string,"p_entity_id": string,"p_rows": number }; Returns: undefined
+{ Args: { "p_entity": string,"p_entity_id": string,"p_filter"?: Json,"p_rows": number }; Returns: undefined
                            },
 "reservation_status":
 { Args: { "p_code": string,"p_phone": string }; Returns: Json

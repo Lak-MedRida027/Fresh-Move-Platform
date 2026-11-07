@@ -130,8 +130,10 @@ entry. Status columns can't be updated directly (column-level grants); only thes
   are executable by `service_role` only (the server, after validation + Turnstile).
 - Every `SECURITY DEFINER` function pins `search_path = ''`; `EXECUTE` is revoked from `public`, `anon`,
   `authenticated` and granted per function.
-- Audit: triggers log every insert/update/delete made by a signed-in user, with before/after JSON; exports call
-  `log_export()`.
+- Audit: triggers log every insert/update/delete made by a signed-in user, with before/after JSON. Excel exports
+  call `log_export(entity, entity_id, rows, filter)` before any row leaves the server; the entry (`action =
+  'export'`) records who, which list (`reservations` with the trip id, or `members`), the filters used and the
+  row count. See `docs/EXPORTS.md`.
 - Storage bucket `trip-images`: public read by URL, 15 MB, `image/webp` only, write/delete for `is_admin()` only.
 
 ## Jobs

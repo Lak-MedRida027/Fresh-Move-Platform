@@ -40,6 +40,9 @@ export default defineConfig({
       assetsInlineLimit: 0,
       // One stylesheet for the whole site instead of several render-blocking files per page.
       cssCodeSplit: false,
+      // The spreadsheet library (admin Excel export, ~930 KB, ~250 KB gzipped) is one
+      // chunk loaded only when someone clicks Export. Everything else is far smaller.
+      chunkSizeWarningLimit: 1000,
     },
   },
   i18n: {

@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { totp } from '../totp';
+import ExcelJS from 'exceljs';
 import sharp from 'sharp';
 import { E2E, localDb, PHOTOS, readAdmins } from './fixtures';
 
@@ -22,6 +23,31 @@ async function signIn(page: Page, info: TestInfo, who: Who, prefix = '') {
   await login(page, info, who, prefix);
   writeFileSync(file, JSON.stringify(await page.context().cookies()));
 }
+
+/** Clicks the page's Excel export and reads the downloaded file back. */
+async function exportExcel(page: Page) {
+  const box = page.locator('[data-export]');
+  await expect(box.locator('[data-export-button]')).toBeEnabled();
+  // The spreadsheet library must run under the strict CSP (no eval): no errors, no violations.
+  const errors: string[] = [];
+  const onConsole = (m: { type(): string; text(): string }) => void (m.type() === 'error' && errors.push(m.text()));
+  const onError = (e: Error) => void errors.push(e.message);
+  page.on('console', onConsole);
+  page.on('pageerror', onError);
+  await page.evaluate(() =>
+    document.addEventListener('securitypolicyviolation', (e) => console.error(`CSP violation: ${e.violatedDirective}`)),
+  );
+  const [download] = await Promise.all([page.waitForEvent('download'), box.locator('[data-export-button]').click()]);
+  await expect(box.locator('[data-export-status]')).toHaveAttribute('data-state', 'done');
+  page.off('console', onConsole);
+  page.off('pageerror', onError);
+  expect(errors).toEqual([]);
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(readFileSync(await download.path()) as unknown as ArrayBuffer);
+  return { wb, filename: download.suggestedFilename(), status: (await box.locator('[data-export-status]').textContent()) ?? '' };
+}
+
+const cells = (ws: ExcelJS.Worksheet, row: number) => (ws.getRow(row).values as unknown[]).slice(1);
 
 async function login(page: Page, info: TestInfo, who: Who, prefix = '') {
   const a = readAdmins(info.project.name)[who];
@@ -57,7 +83,7 @@ test.describe('admin access control', () => {
   });
 
   test('every admin API returns 401 when signed out', async ({ request }) => {
-    for (const api of ['reservations', 'trips', 'members', 'admins', 'settings', 'photos']) {
+    for (const api of ['reservations', 'trips', 'members', 'admins', 'settings', 'photos', 'export']) {
       const res = await request.post(`/admin/api/${api}/`, { form: { action: 'delete', id: 'x' }, maxRedirects: 0 });
       expect(res.status(), api).toBe(401);
     }
@@ -184,6 +210,27 @@ test.describe('admin flows', () => {
     await add.locator('button[type="submit"]').click();
     await expect(page.locator('[data-flash="ok"]')).toHaveText('Reservation added ✓');
     await expect(page.locator('tr[data-status="confirmed"]')).toHaveCount(2);
+
+    // Export the trip's list to Excel and check the file.
+    const tripId = tripUrl.split('/').filter(Boolean).pop()!;
+    const { wb, filename, status } = await exportExcel(page);
+    expect(filename).toBe(`fresh-move-reservations-${slug}-${new Date(Date.now() + 3_600_000).toISOString().slice(0, 10)}.xlsx`);
+    expect(status).toBe('Downloaded: 2 rows.');
+    expect(wb.worksheets.map((w) => w.name)).toEqual(['Summary', 'Reservations']);
+    const sheet = wb.getWorksheet('Reservations')!;
+    expect(sheet.rowCount).toBe(3);
+    const head = cells(sheet, 1) as string[];
+    const exported = [cells(sheet, 2), cells(sheet, 3)];
+    expect(exported.map((r) => r[head.indexOf('Code')])).toContain(code);
+    expect(exported.map((r) => r[head.indexOf('Status')])).toEqual(['Confirmed', 'Confirmed']);
+    expect(exported.map((r) => String(r[head.indexOf('Name')])).sort()).toEqual(['Zz Dm Booker', 'Zz Visitor']);
+    const phoneCell = sheet.getRow(2).getCell(head.indexOf('Phone') + 1);
+    expect(phoneCell.type).toBe(ExcelJS.ValueType.String);
+    expect(String(phoneCell.value)).toMatch(/^\+213[67]\d{8}$/);
+    expect(cells(wb.getWorksheet('Summary')!, 2)).toEqual(['Trip', title]);
+    // The export is in the audit log.
+    const { data: logged } = await localDb().from('audit_log').select('entity, after').eq('action', 'export').eq('entity_id', tripId);
+    expect(logged).toEqual([{ entity: 'reservations', after: { rows: 2, filter: {} } }]);
 
     // Mark completed → it moves to Past trips.
     await page.goto(tripUrl);
@@ -383,6 +430,70 @@ test.describe('admin flows', () => {
     expect(await reg.json()).toEqual({ ok: false, error: 'upload_incomplete' });
     const { data: row } = await localDb().from('trip_images').select('id').eq('id', id).maybeSingle();
     expect(row).toBeNull();
+  });
+
+  test('export: filtered members list in Darja, formulas neutralised, phones as text', async ({ page }, info) => {
+    const db = localDb();
+    // Names are at most 60 characters: keep the tag short (e.g. "Zz Exp mc1a2b3c4d").
+    const run = `${info.project.name.split('-').map((w) => w[0]).join('')}${Date.now().toString(36)}`;
+    const tag = `Zz Exp ${run}`;
+    const phoneOf = () => `+2135${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+    const people = [
+      { full_name: `=HYPERLINK("http://x.example","${tag}")`, phone: phoneOf(), wilaya_code: '05', age: 33, source: 'admin', notes: '@SUM(1)' },
+      { full_name: `أمينة ${tag}`, phone: phoneOf(), wilaya_code: '16', age: 22, source: 'join_form', notes: null },
+    ];
+    const { data: inserted, error } = await db.from('members').insert(people).select('id');
+    expect(error).toBeNull();
+    try {
+      await signIn(page, info, 'organizer');
+      await page.goto(`/admin/members/?q=${encodeURIComponent(tag)}`);
+      await expect(page.locator('[data-member-count]')).toHaveText('2 عضو');
+      const { wb, filename, status } = await exportExcel(page);
+      expect(filename).toMatch(/^fresh-move-members-\d{4}-\d{2}-\d{2}\.xlsx$/);
+      expect(status).toBe('تنزّل: 2 سطر.');
+      expect(wb.worksheets.map((w) => w.name)).toEqual(['الأعضاء']);
+      const ws = wb.worksheets[0]!;
+      expect(ws.views[0]).toMatchObject({ rightToLeft: true, state: 'frozen', ySplit: 1 });
+      expect(ws.rowCount).toBe(3);
+      const head = cells(ws, 1) as string[];
+      const byName = new Map([2, 3].map((r) => [String(ws.getRow(r).getCell(1).value), ws.getRow(r)]));
+      const evil = byName.get(`'${people[0]!.full_name}`);
+      expect(evil, 'formula name starts with an apostrophe').toBeTruthy();
+      expect(evil!.getCell(1).type).toBe(ExcelJS.ValueType.String);
+      expect(evil!.getCell(head.indexOf('ملاحظات') + 1).value).toBe("'@SUM(1)");
+      const amina = byName.get(people[1]!.full_name);
+      expect(amina, 'Arabic name intact').toBeTruthy();
+      expect(amina!.getCell(head.indexOf('التيليفون') + 1).value).toBe(people[1]!.phone);
+      expect(amina!.getCell(head.indexOf('التيليفون') + 1).type).toBe(ExcelJS.ValueType.String);
+      for (const sheet of wb.worksheets) sheet.eachRow((r) => r.eachCell((c) => expect(c.type).not.toBe(ExcelJS.ValueType.Formula)));
+
+      // Recorded with the filter that was used.
+      const { data: logged } = await db.from('audit_log').select('after').eq('action', 'export').eq('entity', 'members').contains('after', { filter: { q: tag } });
+      expect(logged).toEqual([{ after: { rows: 2, filter: { q: tag } } }]);
+    } finally {
+      await db.from('members').delete().in('id', (inserted ?? []).map((m) => m.id));
+    }
+  });
+
+  test('export API: same-origin JSON only, validated, signed-in admins only', async ({ page }, info) => {
+    test.skip(info.project.name !== 'desktop-chrome', 'API checks, one browser is enough');
+    await signIn(page, info, 'organizer');
+    const origin = new URL(page.url()).origin;
+    const post = (data: unknown, headers: Record<string, string> = { Origin: origin }) =>
+      page.request.post('/admin/api/export/', { data, headers, maxRedirects: 0 });
+    const good = { kind: 'reservations', lang: 'en', query: 'status=confirmed' };
+    const okRes = await post(good);
+    expect(okRes.status()).toBe(200);
+    expect(okRes.headers()['cache-control']).toContain('no-store');
+    expect((await okRes.json()).spec.sheets[0].name).toBe('Reservations');
+    expect((await post(good, { Origin: 'https://evil.example' })).status()).toBe(403);
+    expect((await post(good, {})).status()).toBe(403);
+    expect((await post({ ...good, kind: 'audit_log' })).status()).toBe(400);
+    expect((await post({ ...good, trip_id: '../../x' })).status()).toBe(400);
+    expect((await post({ ...good, trip_id: '00000000-0000-4000-8000-000000000000' })).status()).toBe(404);
+    const form = await page.request.post('/admin/api/export/', { form: { kind: 'members' }, headers: { Origin: origin }, maxRedirects: 0 });
+    expect(form.status()).toBe(415);
+    expect((await page.request.get('/admin/api/export/', { maxRedirects: 0 })).status()).toBe(405);
   });
 
   test('language switch keeps the admin page', async ({ page }, info) => {

@@ -121,6 +121,18 @@ export async function guardPublicForm<S extends z.ZodType>(
   return { ok: true, body, ip };
 }
 
+/**
+ * Cloudflare's published test secret keys have fixed answers
+ * (https://developers.cloudflare.com/turnstile/troubleshooting/testing/): the
+ * "always passes" secret accepts only the dummy token the test site keys
+ * produce, the others always fail. Answering them here gives the same result
+ * without a network call, so local runs and tests don't depend on reaching
+ * Cloudflare. Real secrets always go to siteverify.
+ */
+export const TEST_SECRET_PASS = '1x0000000000000000000000000000000AA';
+export const TEST_DUMMY_TOKEN = 'XXXX.DUMMY.TOKEN.XXXX';
+const TEST_SECRETS_FAIL = new Set(['2x0000000000000000000000000000000AA', '3x0000000000000000000000000000000AA']);
+
 /** Server-side Turnstile check (https://developers.cloudflare.com/turnstile/get-started/server-side-validation/). */
 export async function verifyTurnstileToken(
   secret: string,
@@ -129,6 +141,8 @@ export async function verifyTurnstileToken(
   fetchImpl: typeof fetch = fetch,
 ): Promise<boolean> {
   if (!secret || !token || token.length > 2048) return false;
+  if (secret === TEST_SECRET_PASS) return token === TEST_DUMMY_TOKEN;
+  if (TEST_SECRETS_FAIL.has(secret)) return false;
   const form = new FormData();
   form.append('secret', secret);
   form.append('response', token);

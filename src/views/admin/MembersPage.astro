@@ -1,9 +1,10 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
+import ExportButton from '../../components/admin/ExportButton.astro';
 import { adminT } from '../../i18n/admin';
 import type { Locale } from '../../i18n';
 import { WILAYAS, getWilaya, wilayaLabel } from '../../data/wilayas';
-import { PAGE_SIZE, whatsappLink } from '../../lib/admin/data';
+import { PAGE_SIZE, memberQuery, parseMemberFilter, whatsappLink } from '../../lib/admin/data';
 import { adminPath } from '../../lib/admin/paths';
 import { formatDateTime } from '../../lib/dates';
 
@@ -13,25 +14,9 @@ interface Props {
 const { locale } = Astro.props;
 const t = adminT(locale);
 const sb = Astro.locals.admin!.supabase;
-const p = Astro.url.searchParams;
-const q = (p.get('q') ?? '').slice(0, 60);
-const wilaya = /^\d{2}$/.test(p.get('wilaya') ?? '') ? p.get('wilaya')! : '';
-const ageMin = Number(p.get('age_min') ?? '') || null;
-const ageMax = Number(p.get('age_max') ?? '') || null;
-const page = Math.max(1, Number(p.get('page') ?? '1') || 1);
-
-let query = sb.from('members').select('*', { count: 'exact' });
-if (q) {
-  const digits = q.replace(/\D/g, '');
-  const safe = q.replace(/[%_,()]/g, ' ');
-  const ors = [`full_name.ilike.%${safe}%`];
-  if (digits.length >= 4) ors.push(`phone.ilike.%${digits.replace(/^0/, '')}%`);
-  query = query.or(ors.join(','));
-}
-if (wilaya) query = query.eq('wilaya_code', wilaya);
-if (ageMin) query = query.gte('age', ageMin);
-if (ageMax) query = query.lte('age', ageMax);
-const { data: members, count } = await query.order('created_at', { ascending: false }).range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+const filter = parseMemberFilter(Astro.url.searchParams);
+const { q, wilaya, ageMin, ageMax, page } = filter;
+const { data: members, count } = await memberQuery(sb, filter, true).order('created_at', { ascending: false }).range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 const total = count ?? 0;
 const qs = (extra: Record<string, string>) =>
   `?${new URLSearchParams({ ...(q && { q }), ...(wilaya && { wilaya }), ...(ageMin && { age_min: String(ageMin) }), ...(ageMax && { age_max: String(ageMax) }), ...extra })}`;
@@ -62,6 +47,7 @@ const qs = (extra: Record<string, string>) =>
     <button class="btn btn-ghost btn-sm" type="submit">{t('apply')}</button>
   </form>
   <p class="muted-sm" data-member-count>{t('mem.count', { count: total })}</p>
+  <ExportButton locale={locale} kind="members" query={qs({}).slice(1)} count={total} />
 
   <table class="atable" data-members>
     <thead>

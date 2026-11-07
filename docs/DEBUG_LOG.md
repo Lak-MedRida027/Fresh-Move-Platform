@@ -236,3 +236,40 @@ An automated review flagged three weaknesses; all fixed with tests in `tests/api
   It's now a styled label with our own text; the real input stays focusable and labelled.
 - **Known, later:** the copy review (`docs/COPY_REVIEW.md`) covers the public site, not the admin
   strings yet (phase 10).
+
+## Phase 7: Excel export
+
+- **Library choice: exceljs 4.4.0** (the latest release). It writes styled headers, frozen rows, filters,
+  text-formatted cells and real dates; SheetJS Community can't style cells. It runs in the admin's browser,
+  loaded only on the first export (one 930 KB file, ~250 KB gzipped), so the Worker never pays its CPU or
+  bundle cost. The browser build passes the strict CSP (no `eval`); the e2e helper fails on any console
+  error or CSP violation during an export.
+- **npm audit flagged exceljs → `uuid` 8 (GHSA-w5hq-g745-h8pq, moderate).** The advisory is about
+  `v3`/`v5`/`v6` with a caller-supplied buffer; exceljs only calls `v4()` (for conditional formatting,
+  which we don't use). Still, `package.json` now overrides `uuid` to `^11.1.1`, which exceljs works with
+  (unit tests build and read back workbooks); runtime audit is back to 0.
+- **`log_export` only stored the row count.** Replaced (migration `20261107000600_exports.sql`) with a
+  version that also stores the filters and validates its input (known lists only, row count ≥ 0, filter
+  a small JSON object). The endpoint writes the log entry before returning any rows; if that fails,
+  nothing is exported.
+- **The reservations and members filters were written inline in two pages.** Moved to
+  `src/lib/admin/data.ts` (`parseReservationFilter`, `reservationQuery`, `parseMemberFilter`,
+  `memberQuery`), so the page and its export can't disagree about what "the filtered list" is.
+- **PostgREST returns at most 1000 rows per request** (`max_rows`), so a plain query would silently cut a
+  big export. The endpoint reads in pages of 1000 with a stable order (`created_at`, then `id`) and stops
+  at 10,000 rows with a clear message.
+- **An e2e insert failed: "violates check constraint members_full_name_check".** The test's formula-shaped
+  name was over 60 characters; the test tag is shorter now.
+- **Darja wording:** the "Hold until" column header was half English (`Hold حتى`); it's `محجوز حتى` now.
+- **Flaky e2e failures under full load: "We couldn't confirm you're human".** Different booking tests
+  failed on different runs, and each passed alone. The trace showed the browser had sent Cloudflare's dummy
+  test token; the server's siteverify call to Cloudflare had failed (it timed out while three browsers, the
+  Worker and the database were all busy). Root cause: local runs depended on a live call to Cloudflare.
+  Cloudflare's published test secrets have fixed answers ("always passes" accepts only the dummy token;
+  the others always fail), so `verifyTurnstileToken` now answers those locally with the same result and
+  only real secrets go to siteverify. Unit-tested. **For deploy (phase 9):** production must use the real
+  secret, never a test one; the smoke test checks that a booking without a real token is refused.
+- **The CSP sweep test timed out on mobile Safari under full load** waiting for `networkidle` on the home
+  page: the page had loaded, but a trip-card image from the local storage container (busy with the photo
+  upload tests running in parallel) kept the network from going quiet. The test doesn't need network
+  silence: a CSP violation fires when a request starts. It now waits for `load` plus a short pause.

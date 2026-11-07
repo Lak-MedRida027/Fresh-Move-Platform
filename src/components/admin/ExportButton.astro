@@ -1,0 +1,55 @@
+---
+/**
+ * "Export to Excel" for the list on the page, with the page's current filters.
+ * The file is built in the browser (src/scripts/admin-export.ts), so the button
+ * stays disabled until the script has loaded.
+ */
+import { adminT } from '../../i18n/admin';
+import type { Locale } from '../../i18n';
+import { MAX_EXPORT_ROWS } from '../../lib/excel/spec';
+
+interface Props {
+  locale: Locale;
+  kind: 'reservations' | 'members';
+  tripId?: string;
+  /** The page's filters, as a query string (status=…&q=…). */
+  query: string;
+  count: number;
+}
+const { locale, kind, tripId, query, count } = Astro.props;
+const t = adminT(locale);
+const messages = {
+  working: t('exp.working'),
+  done: t('exp.done'),
+  too_many_rows: t('exp.err.too_many_rows', { max: MAX_EXPORT_ROWS.toLocaleString(locale === 'ar' ? 'ar-DZ' : 'en') }),
+  forbidden: t('exp.err.forbidden'),
+  generic: t('exp.err.generic'),
+};
+---
+
+{
+  count > 0 && (
+    <div
+      class="export-box"
+      data-export
+      data-kind={kind}
+      data-trip={tripId ?? ''}
+      data-query={query}
+      data-lang={locale}
+      data-messages={JSON.stringify(messages)}
+    >
+      <button class="btn btn-ghost btn-sm" type="button" data-export-button disabled aria-describedby={`exp-help-${kind}`}>
+        {t('exp.button')}
+      </button>
+      <p class="muted-sm" id={`exp-help-${kind}`}>{t('exp.help')}</p>
+      <p class="muted-sm" data-export-status role="status" aria-live="polite"></p>
+      <noscript>
+        <p class="muted-sm">{t('exp.needsJs')}</p>
+      </noscript>
+    </div>
+  )
+}
+
+<script>
+  import '../../scripts/admin-export.ts';
+</script>

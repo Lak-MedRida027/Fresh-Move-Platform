@@ -224,6 +224,32 @@ describe('RLS: admins', () => {
     expect(denied(await noMfa.client.rpc('admin_reorder_images', { p_trip_id: trip.id, p_ids: order }))).toBe(true);
     expect(denied(await anon().rpc('admin_reorder_images', { p_trip_id: trip.id, p_ids: order }))).toBe(true);
   });
+
+  it('exports are recorded with who, what, filters and row count', async () => {
+    const tripId = randomUUID();
+    const args = { p_entity: 'reservations', p_entity_id: tripId, p_rows: 7, p_filter: { status: 'confirmed', q: 'ali' } };
+    expect((await organizer.client.rpc('log_export', args)).error).toBeNull();
+    const { data } = await service.from('audit_log').select('*').eq('action', 'export').eq('entity_id', tripId).single();
+    expect(data).toMatchObject({ actor_user_id: organizer.id, entity: 'reservations', before: null, after: { rows: 7, filter: { status: 'confirmed', q: 'ali' } } });
+
+    // Filters are optional; members exports have no entity id.
+    expect((await organizer.client.rpc('log_export', { p_entity: 'members', p_entity_id: '', p_rows: 0 })).error).toBeNull();
+
+    for (const bad of [
+      { ...args, p_entity: 'audit_log' },
+      { ...args, p_rows: -1 },
+      { ...args, p_filter: [1, 2] },
+      { ...args, p_filter: { q: 'x'.repeat(1200) } },
+      { ...args, p_entity_id: 'x'.repeat(201) },
+    ]) {
+      expect((await organizer.client.rpc('log_export', bad as never)).error?.message, JSON.stringify(bad).slice(0, 60)).toBe('invalid_input');
+    }
+    for (const [label, client] of [['no MFA', noMfa.client], ['user', user.client], ['anon', anon()]] as const) {
+      expect((await client.rpc('log_export', args)).error, label).not.toBeNull();
+    }
+    const { count } = await service.from('audit_log').select('id', { count: 'exact', head: true }).eq('action', 'export').eq('entity_id', tripId);
+    expect(count).toBe(1);
+  });
 });
 
 function image(tripId: string) {

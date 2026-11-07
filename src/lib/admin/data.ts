@@ -72,6 +72,8 @@ export async function loadOverview(sb: AdminClient) {
   };
 }
 
+export const RES_STATUSES = ['pending', 'confirmed', 'waitlist', 'cancelled', 'expired'] as const;
+
 export interface ReservationFilter {
   tripId?: string;
   status?: string;
@@ -80,16 +82,29 @@ export interface ReservationFilter {
 }
 export const PAGE_SIZE = 50;
 
-/** Reservations list with search (name, phone, code) and status filter. */
-export async function loadReservations(sb: AdminClient, f: ReservationFilter) {
-  let query = sb.from('reservations').select(RES_SELECT, { count: 'exact' });
-  if (f.tripId) query = query.eq('trip_id', f.tripId);
-  if (f.status) query = query.eq('status', f.status);
+/** Filters from the reservations page URL (also sent by the export button). */
+export function parseReservationFilter(params: URLSearchParams): { status: string; q: string; page: number } {
+  const s = params.get('status') ?? '';
+  return {
+    status: (RES_STATUSES as readonly string[]).includes(s) ? s : '',
+    q: (params.get('q') ?? '').slice(0, 60),
+    page: Math.max(1, Number(params.get('page') ?? '1') || 1),
+  };
+}
+
+/**
+ * Query builder for the reservations list and its export. The search (name,
+ * phone or code) is resolved once; the returned function makes a fresh query
+ * each call, so the export can read every page. Null: nothing can match.
+ */
+export async function reservationQuery(sb: AdminClient, f: ReservationFilter, withCount: boolean) {
   const q = (f.q ?? '').trim();
+  let code: string | null = null;
+  let memberIds: string[] | null = null;
   if (q) {
-    const code = q.toUpperCase().replace(/\s/g, '');
-    if (/^FM-?[2-9A-HJ-NP-Z]{1,5}$/.test(code)) {
-      query = query.ilike('code', `%${code.replace(/^FM-?/, '')}%`);
+    const c = q.toUpperCase().replace(/\s/g, '');
+    if (/^FM-?[2-9A-HJ-NP-Z]{1,5}$/.test(c)) {
+      code = c.replace(/^FM-?/, '');
     } else {
       // Members matching the name or phone, then their reservations.
       const digits = q.replace(/\D/g, '');
@@ -100,16 +115,69 @@ export async function loadReservations(sb: AdminClient, f: ReservationFilter) {
         .select('id')
         .or([`full_name.ilike.%${safe}%`, phoneLike ? `phone.ilike.${phoneLike}` : ''].filter(Boolean).join(','))
         .limit(500);
-      const ids = (members ?? []).map((m) => m.id);
-      if (!ids.length) return { rows: [] as ReservationWithPeople[], total: 0 };
-      query = query.in('member_id', ids);
+      memberIds = (members ?? []).map((m) => m.id);
+      if (!memberIds.length) return null;
     }
   }
+  return () => {
+    let query = sb.from('reservations').select(RES_SELECT, withCount ? { count: 'exact' } : undefined);
+    if (f.tripId) query = query.eq('trip_id', f.tripId);
+    if (f.status) query = query.eq('status', f.status);
+    if (code) query = query.ilike('code', `%${code}%`);
+    if (memberIds) query = query.in('member_id', memberIds);
+    return query;
+  };
+}
+
+/** Reservations list with search (name, phone, code) and status filter. */
+export async function loadReservations(sb: AdminClient, f: ReservationFilter) {
+  const make = await reservationQuery(sb, f, true);
+  if (!make) return { rows: [] as ReservationWithPeople[], total: 0 };
   const page = Math.max(1, f.page ?? 1);
-  const { data, count } = await query
-    .order(f.tripId ? 'created_at' : 'created_at', { ascending: !!f.tripId })
+  const { data, count } = await make()
+    .order('created_at', { ascending: !!f.tripId })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
   return { rows: (data ?? []) as unknown as ReservationWithPeople[], total: count ?? 0 };
+}
+
+export interface MemberFilter {
+  q: string;
+  wilaya: string;
+  ageMin: number | null;
+  ageMax: number | null;
+  page: number;
+}
+
+/** Filters from the members page URL (also sent by the export button). */
+export function parseMemberFilter(p: URLSearchParams): MemberFilter {
+  const age = (v: string | null) => {
+    const n = Number(v ?? '');
+    return Number.isInteger(n) && n > 0 && n <= 150 ? n : null;
+  };
+  return {
+    q: (p.get('q') ?? '').slice(0, 60),
+    wilaya: /^\d{2}$/.test(p.get('wilaya') ?? '') ? p.get('wilaya')! : '',
+    ageMin: age(p.get('age_min')),
+    ageMax: age(p.get('age_max')),
+    page: Math.max(1, Number(p.get('page') ?? '1') || 1),
+  };
+}
+
+/** Query for the members list and its export (a fresh builder each call). */
+export function memberQuery(sb: AdminClient, f: MemberFilter, withCount: boolean) {
+  let query = sb.from('members').select('*', withCount ? { count: 'exact' } : undefined);
+  const q = f.q.trim();
+  if (q) {
+    const digits = q.replace(/\D/g, '');
+    const safe = q.replace(/[%_,()]/g, ' ');
+    const ors = [`full_name.ilike.%${safe}%`];
+    if (digits.length >= 4) ors.push(`phone.ilike.%${digits.replace(/^0/, '')}%`);
+    query = query.or(ors.join(','));
+  }
+  if (f.wilaya) query = query.eq('wilaya_code', f.wilaya);
+  if (f.ageMin) query = query.gte('age', f.ageMin);
+  if (f.ageMax) query = query.lte('age', f.ageMax);
+  return query;
 }
 
 export function whatsappLink(phone: string | null | undefined): string | null {

@@ -203,4 +203,17 @@ describe('form guard helpers', () => {
     expect(await verifyTurnstileToken('s', '', 'ip', no as unknown as typeof fetch)).toBe(false);
     expect(await verifyTurnstileToken('', 'tok', 'ip', no as unknown as typeof fetch)).toBe(false);
   });
+
+  it("Cloudflare's test secrets are answered locally, the same way siteverify answers them", async () => {
+    const net = vi.fn(async () => new Response(JSON.stringify({ success: true })));
+    const f = net as unknown as typeof fetch;
+    expect(await verifyTurnstileToken('1x0000000000000000000000000000000AA', 'XXXX.DUMMY.TOKEN.XXXX', 'ip', f)).toBe(true);
+    expect(await verifyTurnstileToken('1x0000000000000000000000000000000AA', 'a-real-looking-token', 'ip', f)).toBe(false);
+    expect(await verifyTurnstileToken('2x0000000000000000000000000000000AA', 'XXXX.DUMMY.TOKEN.XXXX', 'ip', f)).toBe(false);
+    expect(await verifyTurnstileToken('3x0000000000000000000000000000000AA', 'XXXX.DUMMY.TOKEN.XXXX', 'ip', f)).toBe(false);
+    expect(net).not.toHaveBeenCalled();
+    // A real secret still goes to Cloudflare, even with the dummy token.
+    expect(await verifyTurnstileToken('real-secret', 'XXXX.DUMMY.TOKEN.XXXX', 'ip', f)).toBe(true);
+    expect(net).toHaveBeenCalledOnce();
+  });
 });
