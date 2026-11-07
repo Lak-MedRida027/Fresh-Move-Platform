@@ -9,6 +9,7 @@ node_modules/
 # env (keep the example)
 .env*
 !.env.example
+!.env.production.example
 
 # test output
 test-results/

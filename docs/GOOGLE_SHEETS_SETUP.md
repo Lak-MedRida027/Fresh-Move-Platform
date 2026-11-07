@@ -1,5 +1,9 @@
 # Google Sheets setup (membership form)
 
+> **v1 only.** Since v2, the membership form saves to Supabase. After the members import
+> ([DEPLOY.md](DEPLOY.md), step 10) the Apps Script is switched off. Kept for history.
+
+
 The membership form on the website saves each sign-up as a new row in a Google Sheet.
 It works like this:
 

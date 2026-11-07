@@ -34,7 +34,8 @@
     "backup:test": "node scripts/backup-restore-test.mjs",
     "restore": "node scripts/restore.mjs",
     "cf:types": "wrangler types --include-runtime=false",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "node scripts/deploy.mjs",
+    "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.4.6",

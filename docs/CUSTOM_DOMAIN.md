@@ -1,52 +1,37 @@
 # Connecting a custom domain later
 
-The site runs on the free `*.vercel.app` address for now. When the club buys a domain
-(e.g. `freshmove.dz` or `freshmove.club`), follow these steps.
+The site runs on the free `fresh-move.<subdomain>.workers.dev` address. A domain of your own (e.g.
+`freshmove.club`, or a `.dz` through an accredited reseller) is the best upgrade: it's easier to share,
+and it turns on Cloudflare's edge cache for the pages (not available on `*.workers.dev`), so the site gets
+faster and uses less of the free quotas.
 
-## 1. Add the domain in Vercel
+## 1. Put the domain on Cloudflare
 
-1. Vercel dashboard → the project → **Settings → Domains → Add**.
-2. Enter the domain, e.g. `freshmove.club`. Vercel suggests adding `www.freshmove.club` too; accept it
-   and choose which one is primary (the other redirects to it).
+Cloudflare can only attach a Worker to a domain whose DNS it manages (the free plan is fine).
 
-## 2. Set the DNS records (at your domain registrar)
+1. Cloudflare dashboard → **Add a domain** → enter it → **Free** plan.
+2. Cloudflare shows two **nameservers**. At your registrar, replace the domain's nameservers with those
+   two. This can take from minutes to a day; Cloudflare emails you when the domain is active.
 
-Vercel shows the exact values to use. They are usually:
+## 2. Attach the Worker
 
-| Type | Name | Value |
-|---|---|---|
-| `A` | `@` (the root domain) | `76.76.21.21` |
-| `CNAME` | `www` | `cname.vercel-dns.com` |
+Workers & Pages → **fresh-move** → **Settings → Domains & Routes → Add → Custom domain** → enter the
+domain (e.g. `freshmove.club`), then add `www.freshmove.club` the same way if you want both. Cloudflare
+creates the DNS records and the HTTPS certificate.
 
-Always copy the values shown in your Vercel dashboard, since they can change. DNS can take from a few minutes to
-48 hours. Vercel issues the HTTPS certificate automatically once DNS is correct.
+## 3. Tell everything about the new address
 
-For a `.dz` domain, the registrar is managed through CERIST / accredited resellers; the records are the same.
+1. **`.env.production`**: `SITE_URL=https://freshmove.club`, then `npm run deploy`. (Canonical links,
+   `hreflang`, the sitemap, `robots.txt` and social cards use it.)
+2. **Supabase** → Authentication → **URL Configuration**: set **Site URL** to the new address (the
+   admin emails link to it) and add `https://freshmove.club/**` to **Redirect URLs**.
+3. **Turnstile** → your widget → **Hostname management**: add the new domain.
+4. **Old address:** in `vercel-redirect/vercel.json`, point the destination to the new domain and push,
+   so the v1 address keeps forwarding.
+5. **GitHub** → Settings → Secrets and variables → Actions → Variables: nothing to change (the backup
+   talks to Supabase directly).
+6. Update the **Instagram bio** link.
+7. Check: `npm run smoke -- https://freshmove.club`.
 
-## 3. Tell the site its new address
-
-The address appears in canonical URLs, `hreflang` links, the sitemap, `robots.txt`, Open Graph tags and
-JSON-LD. **Usually nothing to change:** `astro.config.mjs` reads Vercel's `VERCEL_PROJECT_PRODUCTION_URL`
-at build time, which becomes your custom domain once it's the production domain. Just **redeploy** after
-the domain is active (Deployments → … → Redeploy).
-
-If the wrong domain still shows up (e.g. you have several domains), force it with an environment variable:
-Settings → Environment Variables → `SITE_URL` = `https://freshmove.club` (Production), then redeploy.
-Optionally also update the fallback in `src/config/site.ts` → `SITE.url`.
-
-## 4. Check
-
-```bash
-curl -sI https://freshmove.club | head -20          # 200 + security headers
-curl -s https://freshmove.club/sitemap-index.xml    # URLs use the new domain
-```
-
-- View the page source: `<link rel="canonical">` and `og:url` use the new domain.
-- Share the URL in an Instagram DM to yourself and check the preview card.
-- Update the link in the Instagram bio.
-
-## 5. Optional: HSTS preload
-
-`vercel.json` already sends `Strict-Transport-Security: max-age=63072000; includeSubDomains`. Once the
-domain has worked over HTTPS for a while, you can add `; preload` and submit it at
-<https://hstspreload.org>. This is hard to undo, so only do it if every subdomain will always use HTTPS.
+The `workers.dev` address keeps working; you can turn it off in the Worker's **Domains & Routes** once
+the new domain is live.

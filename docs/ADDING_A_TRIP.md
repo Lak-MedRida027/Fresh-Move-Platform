@@ -1,5 +1,9 @@
 # Adding a trip (or real photos)
 
+> **v1 only.** Since v2, trips and photos are added in the admin (Trips → New trip, then Photos);
+> see [IMAGES.md](IMAGES.md). This page describes the old Markdown files, kept for history.
+
+
 No coding needed. You copy one file, change the text, add photos, and push to GitHub.
 Vercel rebuilds the site automatically in about 2 minutes.
 

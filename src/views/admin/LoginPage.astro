@@ -2,6 +2,7 @@
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { adminT } from '../../i18n/admin';
 import type { Locale } from '../../i18n';
+import { adminPath } from '../../lib/admin/paths';
 
 interface Props {
   locale: Locale;
@@ -44,7 +45,7 @@ const expired = Astro.url.searchParams.has('expired');
         />
       </div>
       <button class="btn btn-primary form__submit" type="submit">{t('login.submit')}</button>
-      <p class="muted-sm">{t('login.forgot')}</p>
+      <p class="muted-sm"><a href={adminPath(locale, '/forgot/')}>{t('forgot.link')}</a></p>
     </form>
   </section>
 </AdminLayout>

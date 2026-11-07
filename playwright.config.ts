@@ -1,8 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const PORT = 4321;
-// Set BASE_URL to run the suite against a deployed site (e.g. the live Vercel URL).
+// The suite books seats and creates members: it must never run against production.
+// BASE_URL may only point to another LOCAL server; check a deployed site with `npm run smoke`.
 const BASE_URL = process.env.BASE_URL;
+if (BASE_URL && !/^https?:\/\/(localhost|127\.0\.0\.1|[\w-]+\.localhost)(:\d+)?\/?$/.test(BASE_URL)) {
+  throw new Error(`Refusing to run the e2e suite against ${BASE_URL}: it writes data. Use npm run smoke -- ${BASE_URL}`);
+}
 
 export default defineConfig({
   testDir: 'tests/e2e',

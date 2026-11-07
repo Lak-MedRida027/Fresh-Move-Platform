@@ -1,0 +1,14 @@
+---
+// Admin (server-rendered, never cached; access checked in src/middleware.ts).
+import PasswordPage from '../../../../views/admin/PasswordPage.astro';
+import { adminPath } from '../../../../lib/admin/paths';
+
+// After a reset link (password-only session), anyone who has MFA enters the code first.
+const pending = Astro.locals.pendingMfa;
+if (pending) {
+  const { data } = await pending.supabase.auth.mfa.listFactors();
+  if (data?.totp?.some((f) => f.status === 'verified')) return Astro.redirect(`${adminPath('en', '/mfa/')}?next=password`, 303);
+}
+---
+
+<PasswordPage locale="en" />

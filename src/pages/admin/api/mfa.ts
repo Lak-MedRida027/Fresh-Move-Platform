@@ -11,11 +11,13 @@ export const POST: APIRoute = async (context) => {
   if (!pending) return redirect(adminPath(locale, '/'));
   const factorId = str(form, 'factorId');
   const code = str(form, 'code');
-  const retry = `${adminPath(locale, '/mfa/')}?error=mfa_code`;
+  const next = str(form, 'next') === 'password' ? 'password' : '';
+  const retry = `${adminPath(locale, '/mfa/')}?error=mfa_code${next ? '&next=password' : ''}`;
   if (!factorId || !/^\d{6}$/.test(code)) return redirect(retry);
   const { error } = await pending.supabase.auth.mfa.challengeAndVerify({ factorId, code });
   if (error) return redirect(retry);
-  return redirect(adminPath(locale, '/'));
+  // Back to choosing a new password after a reset link, else the dashboard.
+  return redirect(adminPath(locale, next ? '/password/' : '/'));
 };
 
 export const ALL: APIRoute = () => notAllowed();
