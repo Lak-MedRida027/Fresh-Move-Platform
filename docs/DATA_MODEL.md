@@ -73,6 +73,14 @@ erDiagram
     text entity
     text entity_id
     jsonb before_after
+    timestamptz redacted_at "retention / privacy delete"
+  }
+  job_runs {
+    text job PK "frequent | daily"
+    timestamptz started_at
+    timestamptz finished_at
+    bool ok
+    jsonb result
   }
   settings {
     bool id PK "single row"
@@ -130,17 +138,38 @@ entry. Status columns can't be updated directly (column-level grants); only thes
   are executable by `service_role` only (the server, after validation + Turnstile).
 - Every `SECURITY DEFINER` function pins `search_path = ''`; `EXECUTE` is revoked from `public`, `anon`,
   `authenticated` and granted per function.
-- Audit: triggers log every insert/update/delete made by a signed-in user, with before/after JSON; exports call
-  `log_export()`.
+- Audit: triggers log every insert/update/delete made by a signed-in user, with before/after JSON. Excel exports
+  call `log_export(entity, entity_id, rows, filter)` before any row leaves the server; the entry (`action =
+  'export'`) records who, which list (`reservations` with the trip id, or `members`), the filters used and the
+  row count. See `docs/EXPORTS.md`.
 - Storage bucket `trip-images`: public read by URL, 15 MB, `image/webp` only, write/delete for `is_admin()` only.
 
 ## Jobs
 
-| Function | Schedule | Effect |
+Cloudflare Cron Triggers call `src/lib/jobs.ts` (also `POST /api/cron/<job>` with `CRON_SECRET`). Each step
+runs even if another fails; every run is recorded in `job_runs` and shown on the admin overview, which warns
+when a job is late (15-min job: 1 h; daily: 36 h) or failed.
+
+| Job | Schedule | Steps |
 |---|---|---|
-| `expire_holds()` | every 15 min | `pending` with past `hold_expires_at` → `expired` |
-| `anonymise_old_reservations()` | daily | Reservations of trips that ended more than `retention_months` ago: unlink member, clear notes; also prunes old `rate_limits` rows |
-| `keep_alive()` | daily | Activity so the free project doesn't pause |
+| `frequent` | every 15 min | `expire_holds()`: `pending` with past `hold_expires_at` → `expired` |
+| `daily` | 03:00 UTC | `apply_retention()` (below); orphan photo files (`orphan_image_objects()` lists files no `trip_images` row points to, older than a day; removed through the Storage API, and the job refuses if more than half the files look orphaned); `keep_alive()` so the free project doesn't pause |
+
+`job_runs` (one row per job: `started_at`, `finished_at`, `ok`, `result`, `error`) is readable by admins only
+and written by the Worker with the secret key.
+
+### Retention and privacy deletes
+
+- **`apply_retention()`** (daily), with `settings.retention_months` (default 12):
+  - bookings of trips that ended longer ago lose `member_id`, `admin_note`, `cancel_reason`
+    (`anonymised_at` is set; status, amounts and counts stay);
+  - **audit log entries** older than that lose the personal data they copied: `members` entries keep only
+    who did what and when (`before`/`after` = null); `reservations` entries lose `member_id`,
+    `admin_note`, `cancel_reason`; export entries lose their search terms. `redacted_at` marks them;
+  - rate-limit counters older than a day are deleted.
+- **Deleting a member** (owner, privacy request): a trigger unlinks their bookings and clears the notes
+  first (so the change is logged and can be redacted), then redacts every audit entry about them. The
+  bookings stay, without the person, so trip statistics stay right.
 
 ## Tests
 

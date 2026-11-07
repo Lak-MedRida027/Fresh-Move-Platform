@@ -2,7 +2,7 @@
 // TODO(owner): review this privacy notice. It is plain-language guidance, not legal advice.
 import BaseLayout from '../layouts/BaseLayout.astro';
 import SectionHeading from '../components/SectionHeading.astro';
-import { INSTAGRAM } from '../config/site';
+import { INSTAGRAM, RETENTION_MONTHS } from '../config/site';
 import { useTranslations, type Locale, type TKey } from '../i18n';
 
 interface Props {
@@ -27,7 +27,7 @@ const blocks: { title: TKey; text: TKey }[] = [
         blocks.map((b) => (
           <section class="privacy__block">
             <h2>{t(b.title)}</h2>
-            <p>{t(b.text)}</p>
+            <p>{t(b.text, { months: RETENTION_MONTHS })}</p>
           </section>
         ))
       }

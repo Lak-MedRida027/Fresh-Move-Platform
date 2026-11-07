@@ -145,3 +145,167 @@ An automated review flagged three weaknesses; all fixed with tests in `tests/api
 ## plpgsql_check: STABLE function calling a VOLATILE one
 - `private.require_admin()` (and `admin_storage_usage()`) were `STABLE` but can raise; marked volatile.
   `npm run db:lint` (lint + Security/Performance Advisors) now reports no issues, and CI fails on any finding.
+
+## Phase 3: moving to Cloudflare Workers
+
+- **Unknown trip slug returned 500.** `Astro.rewrite('/404/')` from an on-demand page to a prerendered
+  404 isn't supported. Fix: the trip route renders the 404 view itself with `Astro.response.status = 404`.
+  e2e checks both languages return 404 (not 500).
+- **Unit tests failed to start (`exports is not defined`).** `getViteConfig()` loaded the Cloudflare
+  adapter's workerd test runner. The tests don't need Astro's virtual modules any more, so they use a
+  plain Vitest config.
+- **Browser scripts stopped type-checking.** `wrangler types` emits the whole Workers runtime as globals,
+  which replace DOM types. Now `wrangler types --include-runtime=false` (bindings only) plus the few
+  runtime types we use in `src/cloudflare.d.ts`.
+- **Headers:** Cloudflare's `_headers` file doesn't apply to responses from the Worker, so headers are
+  defined once (`src/lib/security-headers.ts`) and applied by middleware (on-demand pages) and written to
+  `public/_headers` before each build (static files).
+- **Lighthouse on the local preview looked like a regression (75–91).** `astro preview` doesn't compress
+  (home HTML 66 KB vs ~9 KB with brotli; Cloudflare compresses in production). Measured through
+  `scripts/compress-proxy.mjs`: 90 / 95 / 93 / 95 performance, 100 for the rest.
+- **Secrets:** the build copies `.dev.vars` into `dist/server/.prerender/` for prerendering. A post-build
+  check (`scripts/check-client-secrets.mjs`) fails the build if any server-only key name or value appears
+  in `dist/client` (what browsers can download).
+
+## Phase 4: public reservations
+
+- **Reservations never succeeded in e2e.** Reproduced with curl against workerd: the API answered
+  `name.invalid`. The test names ("E2E Tester") contain a digit, which the shared name rule rightly rejects.
+  Fixed the test data (letter-only names), not the rule.
+- **No seats badge on the trip page.** The route still used `getTripBySlug` (no seat count) instead of
+  `getTripWithSeats`. Caught by the e2e reservation test.
+- **Prices failed axe contrast in light theme.** Desert Gold `#A08548` is 3.5:1 on white and the price
+  isn't "bold large text". Added `--sand-text` (`#7A6534`, 5.6:1) for small gold text in light theme.
+- **Every dark-theme page failed axe after a rebuild.** Not a CSS bug: a preview server started by hand
+  before the rebuild kept serving the old build's stylesheet list (one 404), and Playwright reused it.
+  Same cause for stale trips: that server's 60 s in-memory cache still held trips the fixtures had
+  recreated. Lesson: let Playwright start its own server after the fixtures.
+- **"Not found" test hit the rate limiter.** Every run checked the same fake code, so the per-code limit
+  (10/hour) kicked in across repeated runs. That's the limiter working; the test now uses a random code and
+  the e2e fixtures reset the local `rate_limits` table.
+- **Meeting time rendered in the wrong place in RTL** (`06:30محطة باتنة ·`). The time is now on its own line
+  inside `<bdi dir="ltr">`.
+- **Known, for phase 6:** with an on-demand server build, Astro emits one stylesheet per build environment,
+  so pages link two CSS files that share the base styles (~20 KB raw duplicated). Works; to optimise later.
+
+## Security review: a repeat booking revealed someone else's code
+- **Finding:** `/api/reserve` returned the existing booking's code, status and hold when a phone number
+  already had a reservation for the trip (the brief asked for this). Anyone who knows a person's phone
+  number could get their code and then their status, and could overwrite their stored name/wilaya/age.
+- **Fix (deviation from the brief, flagged to the owner):** a repeat booking now returns only
+  `{ ok: true, existing: true }`, and the page says "you already have a booking; use your code or DM us".
+  Migration `20261107000400` stops public forms (reservation and membership) from changing an existing
+  member's details; admins still can. Tests cover both (API, DB and e2e).
+
+## Phase 5: admin core
+
+- **`ResponseSentError` on admin pages.** Views rendered inside the layout called `Astro.redirect` or set
+  `Astro.response.status` after streaming had started. All access decisions (session, idle timeout, MFA
+  level, role, owner-only pages) moved into middleware, which answers before any rendering.
+- **Middleware type errors.** The admin guard was an inline arrow inside `onRequest`; TypeScript couldn't
+  narrow its return type. Now a plain `guardAdmin(context, next): Promise<Response>` function.
+- **Admin e2e logins hit the login rate limit (`RL_LOGIN`).** Every test signed in from scratch. Tests now
+  cache session cookies per browser project and role, and the local limit is 20 per minute.
+- **Flaky MFA logins in parallel tests.** Supabase rejects a TOTP code that was already used (replay
+  protection), so two projects signing in as the same admin in the same 30 s window failed. Reproduced with
+  a small concurrent script. Each Playwright project now has its own owner and organiser accounts.
+- **axe: `scrollable-region-focusable` and `aria-prohibited-attr` on the audit log.** The before/after diff
+  `<pre>` scrolled but couldn't be focused. It's now inside a focusable, labelled `role="region"`.
+- **Storage size read backwards in Darja** (`GB 1 من MB 1,2`). The bidi algorithm reordered the Latin unit.
+  `formatBytes` now wraps the value in a left-to-right isolate for Darja. Seen on the phone screenshots.
+- **e2e setup failed on a repeat run** ("a user with this email address has already been registered").
+  The fixtures deleted the previous run's test admins before creating new ones, and the database refused
+  to delete the last owner (the "keep one owner" rule). The fixtures now create the new accounts first
+  (fresh addresses each run), then delete the old ones, and fail loudly if a delete fails.
+- **Known, for phase 6:** deleting a trip doesn't yet delete its photos from storage.
+
+## Phase 6: photos
+
+- **The new path rule failed to apply locally:** two `trip_images` rows left by a DB test used dummy
+  paths (`'a'`, `'b'`, `'c'`). The test now builds real paths; the leftovers were local test data only.
+- **A DB test insert failed with "null value in alt_ar".** supabase-js sends a batch insert with the union
+  of all rows' keys, so a key missing from one row becomes `null` (not the column default). The test
+  rows now have the same keys.
+- **Old e2e trips left their photo files in storage.** The fixtures deleted the rows but never the files
+  under `trips/<id>/`. They now remove the folder too, the same way the admin's trip delete does.
+- **WebP on iPhones.** Playwright's WebKit can write WebP from a canvas, but Safari has not always been
+  able to (it silently returns PNG). The pipeline checks what it actually got and falls back to a
+  WebAssembly encoder (admin photos page only; the CSP allows `'wasm-unsafe-eval'` on that page alone).
+  The fallback is tested by forcing `toBlob` to ignore WebP.
+- **"Choose Files" in English on the Darja page.** The browser's file button uses the browser's language.
+  It's now a styled label with our own text; the real input stays focusable and labelled.
+- **Known, later:** the copy review (`docs/COPY_REVIEW.md`) covers the public site, not the admin
+  strings yet (phase 10).
+
+## Phase 7: Excel export
+
+- **Library choice: exceljs 4.4.0** (the latest release). It writes styled headers, frozen rows, filters,
+  text-formatted cells and real dates; SheetJS Community can't style cells. It runs in the admin's browser,
+  loaded only on the first export (one 930 KB file, ~250 KB gzipped), so the Worker never pays its CPU or
+  bundle cost. The browser build passes the strict CSP (no `eval`); the e2e helper fails on any console
+  error or CSP violation during an export.
+- **npm audit flagged exceljs → `uuid` 8 (GHSA-w5hq-g745-h8pq, moderate).** The advisory is about
+  `v3`/`v5`/`v6` with a caller-supplied buffer; exceljs only calls `v4()` (for conditional formatting,
+  which we don't use). Still, `package.json` now overrides `uuid` to `^11.1.1`, which exceljs works with
+  (unit tests build and read back workbooks); runtime audit is back to 0.
+- **`log_export` only stored the row count.** Replaced (migration `20261107000600_exports.sql`) with a
+  version that also stores the filters and validates its input (known lists only, row count ≥ 0, filter
+  a small JSON object). The endpoint writes the log entry before returning any rows; if that fails,
+  nothing is exported.
+- **The reservations and members filters were written inline in two pages.** Moved to
+  `src/lib/admin/data.ts` (`parseReservationFilter`, `reservationQuery`, `parseMemberFilter`,
+  `memberQuery`), so the page and its export can't disagree about what "the filtered list" is.
+- **PostgREST returns at most 1000 rows per request** (`max_rows`), so a plain query would silently cut a
+  big export. The endpoint reads in pages of 1000 with a stable order (`created_at`, then `id`) and stops
+  at 10,000 rows with a clear message.
+- **An e2e insert failed: "violates check constraint members_full_name_check".** The test's formula-shaped
+  name was over 60 characters; the test tag is shorter now.
+- **Darja wording:** the "Hold until" column header was half English (`Hold حتى`); it's `محجوز حتى` now.
+- **Flaky e2e failures under full load: "We couldn't confirm you're human".** Different booking tests
+  failed on different runs, and each passed alone. The trace showed the browser had sent Cloudflare's dummy
+  test token; the server's siteverify call to Cloudflare had failed (it timed out while three browsers, the
+  Worker and the database were all busy). Root cause: local runs depended on a live call to Cloudflare.
+  Cloudflare's published test secrets have fixed answers ("always passes" accepts only the dummy token;
+  the others always fail), so `verifyTurnstileToken` now answers those locally with the same result and
+  only real secrets go to siteverify. Unit-tested. **For deploy (phase 9):** production must use the real
+  secret, never a test one; the smoke test checks that a booking without a real token is refused.
+- **The CSP sweep test timed out on mobile Safari under full load** waiting for `networkidle` on the home
+  page: the page had loaded, but a trip-card image from the local storage container (busy with the photo
+  upload tests running in parallel) kept the network from going quiet. The test doesn't need network
+  silence: a CSP violation fires when a request starts. It now waits for `load` plus a short pause.
+
+## Phase 8: jobs and backups
+
+- **Retention left personal data in the audit log.** Bookings were anonymised after 12 months, but every
+  admin change had copied the row (name, phone, notes) into `audit_log`, which kept it forever. The daily
+  `apply_retention()` (replaces `anonymise_old_reservations()`) now also redacts audit entries older than
+  the retention period, and a member delete redacts every entry about them.
+- **A privacy delete still left the member id in one audit entry.** The foreign key's `on delete set null`
+  updated their bookings, and Postgres writes the audit rows of a cascaded update only after all the
+  delete's own triggers have run, so the redaction ran too early. The delete trigger now unlinks the
+  bookings itself (before the delete); the foreign key then has nothing to do. Found by the DB test.
+- **Cron failures were invisible.** Jobs ran in `waitUntil` and only logged. Each run is now recorded in
+  `job_runs`; the admin overview shows the last run and warns when a job is late or failed.
+- **Orphan photo files** (an upload interrupted between storage and the database row) were never cleaned.
+  `orphan_image_objects()` finds files no row points to (older than a day, so uploads in progress are
+  safe); the daily job removes them and refuses if more than half the files look orphaned (a bug, not
+  leftovers).
+- **Backups:** `supabase db dump` (roles, schema, data, migration history) + photo files, encrypted with
+  `age` (`age-encryption`, the reference JS implementation, so the same code runs on Windows, CI and the
+  weekly job). Sessions, refresh tokens and other short-lived auth rows are left out.
+- **Restore failed: "permission denied for table buckets_vectors".** The data dump includes Supabase's
+  internal storage tables (vectors, analytics, multipart uploads), which the `postgres` role can't write.
+  They're empty for us; the restore loads only `public`, `auth` and `storage.objects`, and stops if a
+  skipped table has rows.
+- **`tar: Cannot connect to C: resolve failed`.** GNU tar (first on PATH in Git Bash) reads `C:` in an
+  absolute path as a remote host. The scripts call tar with relative paths from a working directory,
+  which works with GNU tar and Windows' bsdtar.
+- **The key generator thought a key on another drive was inside the project** (`path.relative` returns an
+  absolute path across Windows drives). Fixed; it refuses only paths really inside the project.
+- **Restore round trip tested** (`npm run backup:test`, now in CI): backup → wipe → restore, all counts and
+  the audit id sequence match (542 trips, 736 members, 801 bookings, 124 accounts, 255 photo files).
+- **Public pages timed out in e2e (axe on `/` and `/trips/`, page loads in the admin flow), more each run.**
+  The local database had ~590 trips: the DB tests' `makeTrip` created public "test trips" and never deleted
+  them, and the e2e suite uses the same database, so the home and trips pages rendered hundreds of cards.
+  This was also behind the borderline timeouts seen in phase 7. Each DB test file now removes what it
+  created (trips with their bookings and photo files, members, test accounts) in `tests/db/setup.ts`.

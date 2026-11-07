@@ -1,0 +1,65 @@
+---
+import { useTranslations, type Locale } from '../i18n';
+import { seatState, type Trip } from '../lib/trips';
+
+interface Props {
+  trip: Trip;
+  locale: Locale;
+}
+const { trip, locale } = Astro.props;
+const t = useTranslations(locale);
+const state = seatState(trip);
+const label =
+  state === 'closed'
+    ? t('seats.closed')
+    : state === 'full'
+      ? t('seats.full')
+      : trip.seatsLeft === null
+        ? null
+        : trip.seatsLeft === 1
+          ? t('seats.one')
+          : t('seats.left', { count: trip.seatsLeft });
+const almost = state === 'almost' ? t('seats.almostFull') : null;
+---
+
+{
+  label && (
+    <p class="seats" data-seats-state={state}>
+      <span class="seats__dot" aria-hidden="true" />
+      <span>{label}</span>
+      {almost && <span class="seats__almost">· {almost}</span>}
+    </p>
+  )
+}
+
+<style>
+  .seats {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border);
+    background: var(--surface-raised);
+    font-size: 0.85rem;
+    font-weight: 600;
+    inline-size: fit-content;
+  }
+  .seats__dot {
+    inline-size: 0.6rem;
+    block-size: 0.6rem;
+    border-radius: 50%;
+    background: var(--success);
+  }
+  .seats[data-seats-state='almost'] .seats__dot {
+    background: var(--accent-sand);
+  }
+  .seats[data-seats-state='full'] .seats__dot,
+  .seats[data-seats-state='closed'] .seats__dot {
+    background: var(--error);
+  }
+  .seats__almost {
+    color: var(--fg-muted);
+  }
+</style>

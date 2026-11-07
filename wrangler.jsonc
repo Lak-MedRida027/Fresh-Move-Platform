@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "fresh-move",
+  // Astro's handler wrapped with our scheduled() jobs.
+  "main": "./src/worker.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  // Expire holds every 15 min; daily retention + keep-alive (uses 2 of the 5 free cron triggers).
+  "triggers": { "crons": ["*/15 * * * *", "0 3 * * *"] },
+  // Per-IP burst limits (approximate, per Cloudflare location). Strict per-phone /
+  // per-code limits live in the database (hit_rate_limit).
+  "ratelimits": [
+    { "name": "RL_FORMS", "namespace_id": "4101", "simple": { "limit": 20, "period": 60 } },
+    { "name": "RL_LOGIN", "namespace_id": "4102", "simple": { "limit": 20, "period": 60 } }
+  ]
+  // Secrets (wrangler secret put …): SUPABASE_SERVICE_ROLE_KEY, TURNSTILE_SECRET_KEY, CRON_SECRET.
+  // Public values are build-time PUBLIC_* variables (.env), see .env.example.
+}

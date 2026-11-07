@@ -1,0 +1,73 @@
+---
+/**
+ * Two-step verification. First sign-in: enrol a TOTP authenticator (QR +
+ * key). Later: enter the 6-digit code. Admin access needs this (aal2).
+ */
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { adminT } from '../../i18n/admin';
+import type { Locale } from '../../i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = adminT(locale);
+// Middleware only lets signed-in admins without MFA reach this page.
+const pending = Astro.locals.pendingMfa!;
+
+const sb = pending.supabase;
+const { data: factors } = await sb.auth.mfa.listFactors();
+const verified = factors?.totp?.find((f) => f.status === 'verified');
+let enroll: { factorId: string; qr: string; secret: string } | null = null;
+if (!verified) {
+  // Remove half-finished enrolments, then start a fresh one.
+  for (const f of factors?.all ?? []) {
+    if (f.status !== 'verified') await sb.auth.mfa.unenroll({ factorId: f.id });
+  }
+  const { data, error } = await sb.auth.mfa.enroll({ factorType: 'totp', friendlyName: `Fresh Move ${Date.now()}` });
+  if (!error && data) enroll = { factorId: data.id, qr: data.totp.qr_code, secret: data.totp.secret };
+}
+const factorId = verified?.id ?? enroll?.factorId ?? '';
+const heading = verified ? t('mfa.verifyTitle') : t('mfa.enrollTitle');
+---
+
+<AdminLayout locale={locale} title={heading} bare>
+  <section class="auth-card form-card" aria-labelledby="mfa-title">
+    <h1 id="mfa-title">{heading}</h1>
+    <p>{verified ? t('mfa.verifyText') : t('mfa.enrollText')}</p>
+    {
+      enroll && (
+        <>
+          <img class="qr" src={enroll.qr} alt={t('mfa.qrAlt')} width="200" height="200" />
+          <p class="muted-sm">{t('mfa.secret')}</p>
+          <p class="secret" data-totp-secret>
+            {enroll.secret}
+          </p>
+        </>
+      )
+    }
+    <form class="form" method="post" action="/admin/api/mfa/">
+      <input type="hidden" name="lang" value={locale} />
+      <input type="hidden" name="factorId" value={factorId} />
+      <div class="field">
+        <label class="field__label" for="mfa-code">{t('mfa.code')}</label>
+        <input
+          class="field__input field__input--ltr"
+          id="mfa-code"
+          name="code"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          pattern="[0-9]{6}"
+          maxlength="6"
+          dir="ltr"
+          required
+        />
+      </div>
+      <button class="btn btn-primary form__submit" type="submit">{t('mfa.submit')}</button>
+    </form>
+    <form method="post" action="/admin/api/logout/">
+      <input type="hidden" name="lang" value={locale} />
+      <button class="btn btn-ghost btn-sm" type="submit">{t('logout')}</button>
+    </form>
+  </section>
+</AdminLayout>

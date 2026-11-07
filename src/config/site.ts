@@ -25,3 +25,10 @@ export const STATS = {
 /** Minimum age to enroll as a member. */
 export const MIN_AGE = 18;
 export const MAX_AGE = 80;
+
+/**
+ * Months after a trip ends before booking details are anonymised (shown on the
+ * privacy page). The database setting `settings.retention_months` is what the
+ * daily job uses: keep both the same. TODO(owner): confirm 12 months.
+ */
+export const RETENTION_MONTHS = 12;

@@ -25,7 +25,7 @@ if (!isLocal && !process.argv.includes('--production')) {
 }
 
 const db = createClient(url, key, { auth: { persistSession: false } });
-const DIR = 'src/content/trips';
+const DIR = 'supabase/seed-data/trips';
 const SIZES = { sm: 480, md: 960, lg: 1600 } as const;
 
 interface Front {

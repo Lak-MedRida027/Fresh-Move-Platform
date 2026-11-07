@@ -1,12 +1,15 @@
 ---
-import { getImage, Image } from 'astro:assets';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Icon from '../components/Icon.astro';
 import TerrainTag from '../components/TerrainTag.astro';
+import TripPhoto from '../components/TripPhoto.astro';
 import InstagramButtons from '../components/InstagramButtons.astro';
+import ReserveForm from '../components/ReserveForm.astro';
+import SeatsBadge from '../components/SeatsBadge.astro';
 import { getRegion } from '../data/regions';
 import { localizePath, useTranslations, type Locale } from '../i18n';
-import { formatTripDate, type Trip } from '../lib/trips';
+import { formatTripDate, isUpcoming, seatState, type Trip } from '../lib/trips';
+import { formatDateRange, formatDateTime, formatTime } from '../lib/dates';
 
 interface Props {
   locale: Locale;
@@ -14,34 +17,24 @@ interface Props {
 }
 const { locale, trip } = Astro.props;
 const t = useTranslations(locale);
-const { data } = trip;
+const data = trip;
 const title = data.title[locale];
 const region = getRegion(data.region);
 const primary = data.terrain[0] ?? 'mountain';
+const cover = data.cover;
+
+const upcoming = isUpcoming(data);
+const state = upcoming ? seatState(data) : 'closed';
+const numberFmt = new Intl.NumberFormat(locale === 'ar' ? 'ar-DZ' : 'en');
+const meetingTime = formatTime(data.meetingTime);
 
 const HERO_SIZES = '100vw';
-const cover = await getImage({
-  src: data.cover,
-  widths: [640, 960, 1280, 1600],
-  sizes: HERO_SIZES,
-  format: 'webp',
-  quality: 72,
-});
-
-const ogImage = await getImage({ src: data.cover, width: 1200, height: 630, format: 'jpg', quality: 80 });
-
 const total = data.gallery.length;
-// Full-size versions for the lightbox are computed at build time.
-const photos = await Promise.all(
-  data.gallery.map(async (img, i) => {
-    const full = await getImage({ src: img, width: 1600, format: 'webp', quality: 78 });
-    return {
-      img,
-      full: full.src,
-      alt: t('trip.photoAlt', { title, n: i + 1, total }),
-    };
-  }),
-);
+const photos = data.gallery.map((img, i) => ({
+  img,
+  full: img.srcLg,
+  alt: img.alt[locale] || t('trip.photoAlt', { title, n: i + 1, total }),
+}));
 ---
 
 <BaseLayout
@@ -49,33 +42,26 @@ const photos = await Promise.all(
   title={t('meta.trip.title', { title })}
   description={data.summary[locale]}
   ogType="article"
-  ogImage={ogImage.src}
+  ogImage={cover?.srcLg}
 >
-  <link
-    slot="head"
-    rel="preload"
-    as="image"
-    type="image/webp"
-    href={cover.src}
-    imagesrcset={cover.srcSet.attribute}
-    imagesizes={HERO_SIZES}
-    fetchpriority="high"
-  />
+  {
+    cover && (
+      <link
+        slot="head"
+        rel="preload"
+        as="image"
+        type="image/webp"
+        href={cover.src}
+        imagesrcset={cover.srcset}
+        imagesizes={HERO_SIZES}
+        fetchpriority="high"
+      />
+    )
+  }
 
   <article class="trip" data-terrain={primary}>
     <header class="trip-hero">
-      <img
-        class="trip-hero__img"
-        src={cover.src}
-        srcset={cover.srcSet.attribute}
-        sizes={HERO_SIZES}
-        width={data.cover.width}
-        height={data.cover.height}
-        alt={t('trip.coverAlt', { title })}
-        fetchpriority="high"
-        loading="eager"
-        decoding="async"
-      />
+      {cover && <TripPhoto image={cover} locale={locale} sizes={HERO_SIZES} eager class="trip-hero__img" />}
       <div class="trip-hero__scrim" aria-hidden="true"></div>
       <div class="container trip-hero__content">
         <a class="trip-hero__back" href={localizePath('/trips/', locale)}>
@@ -102,8 +88,12 @@ const photos = await Promise.all(
           <dd>{region.name[locale]}</dd>
         </div>
         <div>
-          <dt>{t('trip.date')}</dt>
-          <dd>{formatTripDate(data.date, locale)}</dd>
+          <dt>{upcoming ? t('trip.dates') : t('trip.date')}</dt>
+          <dd>
+            {upcoming && data.startDate
+              ? formatDateRange(data.startDate, data.endDate, locale)
+              : formatTripDate(data.startDate, locale)}
+          </dd>
         </div>
         <div>
           <dt>{t('trip.terrain')}</dt>
@@ -111,9 +101,97 @@ const photos = await Promise.all(
             {data.terrain.map((terrain) => <TerrainTag terrain={terrain} locale={locale} />)}
           </dd>
         </div>
+        {
+          upcoming && data.priceDa !== null && (
+            <div>
+              <dt>{t('trip.price')}</dt>
+              <dd class="trip__price">{t('price.da', { price: numberFmt.format(data.priceDa) })}</dd>
+            </div>
+          )
+        }
+        {
+          upcoming && data.difficulty && (
+            <div>
+              <dt>{t('difficulty.label')}</dt>
+              <dd>{t(`difficulty.${data.difficulty}`)}</dd>
+            </div>
+          )
+        }
+        {
+          upcoming && data.meetingPoint[locale] && (
+            <div>
+              <dt>{t('trip.meeting')}</dt>
+              <dd>
+                {data.meetingPoint[locale]}
+                {meetingTime && (
+                  <span class="trip__time">
+                    {t('trip.meetingTime')} <bdi dir="ltr">{meetingTime}</bdi>
+                  </span>
+                )}
+              </dd>
+            </div>
+          )
+        }
+        {
+          upcoming && data.registrationDeadline && (
+            <div>
+              <dt>{t('trip.deadline')}</dt>
+              <dd>
+                {formatDateTime(data.registrationDeadline, locale)}
+                {state !== 'closed' && (
+                  <span
+                    class="trip__countdown"
+                    data-countdown={data.registrationDeadline}
+                    data-template-days={t('trip.deadlineLeft', { days: '{days}', hours: '{hours}' })}
+                    data-template-soon={t('trip.deadlineSoon', { hours: '{hours}', minutes: '{minutes}' })}
+                    data-closed={t('seats.closed')}
+                  />
+                )}
+              </dd>
+            </div>
+          )
+        }
       </dl>
+      {upcoming && <SeatsBadge trip={data} locale={locale} />}
 
       <p class="trip__story">{data.summary[locale]}</p>
+      {
+        upcoming && (
+          <div class="trip__details">
+            {data.description[locale] && (
+              <section aria-labelledby="about-trip">
+                <h2 id="about-trip">{t('trip.description')}</h2>
+                <p class="prewrap">{data.description[locale]}</p>
+              </section>
+            )}
+            {data.whatToBring[locale] && (
+              <section aria-labelledby="bring">
+                <h2 id="bring">{t('trip.bring')}</h2>
+                <p class="prewrap">{data.whatToBring[locale]}</p>
+              </section>
+            )}
+            {data.paymentInstructions[locale] && (
+              <section aria-labelledby="pay">
+                <h2 id="pay">{t('trip.payment')}</h2>
+                <p class="prewrap">{data.paymentInstructions[locale]}</p>
+                <p class="muted">{t('trip.paymentNote', { hours: data.holdHours })}</p>
+              </section>
+            )}
+          </div>
+        )
+      }
+      {
+        upcoming && state !== 'closed' && <ReserveForm locale={locale} trip={data} state={state} />
+      }
+      {
+        upcoming && state === 'closed' && (
+          <section class="form-card trip-closed" aria-labelledby="closed-title" data-registrations-closed>
+            <h2 id="closed-title">{t('reserve.closedTitle')}</h2>
+            <p>{t('reserve.closedText')}</p>
+            <InstagramButtons locale={locale} followLabel={t('how.ctaFollow')} dmLabel={t('how.ctaDm')} />
+          </section>
+        )
+      }
       {
         data.instagramPostUrl && (
           <p>
@@ -144,14 +222,7 @@ const photos = await Promise.all(
                     aria-label={t('trip.openPhoto', { n: i + 1 })}
                     aria-haspopup="dialog"
                   >
-                    <Image
-                      src={photo.img}
-                      alt={photo.alt}
-                      widths={[320, 480, 720]}
-                      sizes="(min-width: 64rem) 25vw, 50vw"
-                      loading="lazy"
-                      class="gallery__img"
-                    />
+                    <TripPhoto image={photo.img} locale={locale} alt={photo.alt} sizes="(min-width: 64rem) 25vw, 50vw" />
                   </button>
                 </li>
               ))}
@@ -160,11 +231,15 @@ const photos = await Promise.all(
         )
       }
 
-      <aside class="trip-cta" aria-labelledby="trip-cta-title">
-        <h2 id="trip-cta-title" class="trip-cta__title">{t('trip.cta.title')}</h2>
-        <p class="trip-cta__text">{t('trip.cta.text')}</p>
-        <InstagramButtons locale={locale} followLabel={t('how.ctaFollow')} dmLabel={t('how.ctaDm')} />
-      </aside>
+      {
+        !upcoming && (
+          <aside class="trip-cta" aria-labelledby="trip-cta-title">
+            <h2 id="trip-cta-title" class="trip-cta__title">{t('trip.cta.title')}</h2>
+            <p class="trip-cta__text">{t('trip.cta.text')}</p>
+            <InstagramButtons locale={locale} followLabel={t('how.ctaFollow')} dmLabel={t('how.ctaDm')} />
+          </aside>
+        )
+      }
     </div>
   </article>
 
@@ -195,6 +270,7 @@ const photos = await Promise.all(
 
   <script>
     import '../scripts/lightbox.ts';
+    import '../scripts/countdown.ts';
   </script>
 </BaseLayout>
 
@@ -209,12 +285,9 @@ const photos = await Promise.all(
     overflow: hidden;
     background: var(--burnt-earth);
   }
-  .trip-hero__img {
+  .trip-hero :global(.trip-hero__img) {
     position: absolute;
     inset: 0;
-    inline-size: 100%;
-    block-size: 100%;
-    object-fit: cover;
     z-index: -2;
   }
   .trip-hero__scrim {
@@ -262,7 +335,7 @@ const photos = await Promise.all(
   }
   .trip__facts {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
     gap: 0.75rem;
     margin: 0;
   }
@@ -285,6 +358,40 @@ const photos = await Promise.all(
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
+  }
+  .trip__price {
+    font-family: var(--font-display-latin);
+    font-size: 1.3rem;
+    color: var(--sand-text);
+  }
+  :global(html[lang^='ar']) .trip__price {
+    font-family: var(--font-arabic);
+  }
+  .trip__time {
+    display: block;
+    color: var(--fg-muted);
+    font-weight: 500;
+  }
+  .trip__countdown {
+    display: block;
+    margin-block-start: 0.25rem;
+    color: var(--link);
+    font-size: 0.9rem;
+  }
+  .trip__details {
+    display: grid;
+    gap: 1.5rem;
+    max-inline-size: 46rem;
+  }
+  .trip__details h2,
+  .trip-closed h2 {
+    font-size: 1.5rem;
+    margin-block-end: 0.5rem;
+  }
+  .trip-closed {
+    display: grid;
+    gap: 0.75rem;
+    justify-items: start;
   }
   .trip__story {
     max-inline-size: 44rem;
@@ -320,13 +427,10 @@ const photos = await Promise.all(
     cursor: zoom-in;
     aspect-ratio: 3 / 2;
   }
-  .gallery__item :global(.gallery__img) {
-    inline-size: 100%;
-    block-size: 100%;
-    object-fit: cover;
+  .gallery__item :global(.trip-photo__img) {
     transition: transform 0.35s var(--ease-out);
   }
-  .gallery__item:hover :global(.gallery__img) {
+  .gallery__item:hover :global(.trip-photo__img) {
     transform: scale(1.04);
   }
 

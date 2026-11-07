@@ -1,8 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { anon, denied, makeTrip, makeUser, phone, reserve, reserveArgs, service, type DB, type TestUser } from './helpers';
 
-type Table = 'members' | 'reservations' | 'admin_users' | 'audit_log' | 'settings' | 'rate_limits';
-const PRIVATE_TABLES: Table[] = ['members', 'reservations', 'admin_users', 'audit_log', 'settings', 'rate_limits'];
+type Table = 'members' | 'reservations' | 'admin_users' | 'audit_log' | 'settings' | 'rate_limits' | 'job_runs';
+const PRIVATE_TABLES: Table[] = ['members', 'reservations', 'admin_users', 'audit_log', 'settings', 'rate_limits', 'job_runs'];
 
 let user: TestUser; // signed in, not an admin
 let noMfa: TestUser; // admin row, but session without MFA (aal1)
@@ -30,6 +31,9 @@ beforeAll(async () => {
   memberId = m!.id;
   const { data: res } = await service.from('reservations').select('id').eq('code', r.code).single();
   reservationId = res!.id;
+  // A job run to (fail to) read.
+  const at = new Date().toISOString();
+  await service.from('job_runs').upsert({ job: 'frequent', started_at: at, finished_at: at, ok: true, result: { expired: 0 } });
   // Something in the audit log to (fail to) read.
   await owner.client.from('trips').update({ featured: true }).eq('id', open.id);
 });
@@ -74,7 +78,8 @@ async function expectNoAccess(client: DB, label: string) {
     ['reservation_status', { p_phone: phone(), p_code: 'FM-AAAAA' }],
     ['hit_rate_limit', { p_key: 'x', p_max: 1, p_window_seconds: 60 }],
     ['expire_holds', {}],
-    ['anonymise_old_reservations', {}],
+    ['apply_retention', {}],
+    ['orphan_image_objects', {}],
   ] as const) {
     const res = await client.rpc(fn as never, args as never);
     expect(res.error, `${label} rpc ${fn}`).not.toBeNull();
@@ -126,6 +131,8 @@ describe('RLS: admins', () => {
     expect(upd.data).toHaveLength(1);
     const note = await c.from('reservations').update({ admin_note: 'called' }).eq('id', reservationId).select();
     expect(note.data).toHaveLength(1);
+    expect((await c.from('job_runs').select('job').eq('job', 'frequent')).data).toEqual([{ job: 'frequent' }]);
+    expect(denied(await c.from('job_runs').update({ ok: false }).eq('job', 'frequent').select())).toBe(true);
   });
 
   it('organizer cannot change reservation status directly (only via functions)', async () => {
@@ -176,12 +183,83 @@ describe('RLS: admins', () => {
 
   it('publishing requires alt text on every image', async () => {
     const trip = await makeTrip({ status: 'draft' });
-    await service.from('trip_images').insert({
-      trip_id: trip.id, kind: 'poster', path_sm: 'a', path_md: 'b', path_lg: 'c', width: 1080, height: 1350,
-    });
+    expect((await service.from('trip_images').insert(image(trip.id))).error).toBeNull();
     const res = await organizer.client.from('trips').update({ status: 'open' }).eq('id', trip.id);
     expect(res.error?.message).toBe('missing_alt_text');
     await service.from('trip_images').update({ alt_ar: 'بوستر', alt_en: 'Poster' }).eq('trip_id', trip.id);
     expect((await organizer.client.from('trips').update({ status: 'open' }).eq('id', trip.id)).error).toBeNull();
   });
+
+  it('closing a trip also requires alt text (closed trips are public)', async () => {
+    const trip = await makeTrip({ status: 'draft' });
+    await service.from('trip_images').insert(image(trip.id));
+    const res = await organizer.client.from('trips').update({ status: 'closed' }).eq('id', trip.id);
+    expect(res.error?.message).toBe('missing_alt_text');
+  });
+
+  it('photo files must live at trips/<trip>/<image>-<size>.webp', async () => {
+    const trip = await makeTrip({ status: 'draft' });
+    const bad = { ...image(trip.id), path_md: `trips/${trip.id}/other-md.webp` };
+    expect((await service.from('trip_images').insert(bad)).error?.message).toMatch(/trip_images_paths/);
+  });
+
+  it('the public never sees a photo that lacks alt text, even on a public trip', async () => {
+    const trip = await makeTrip({ status: 'open' });
+    const withAlt = { ...image(trip.id), alt_ar: 'صورة', alt_en: 'Photo' };
+    const without = { ...image(trip.id), alt_ar: '', alt_en: '' };
+    expect((await service.from('trip_images').insert([withAlt, without])).error).toBeNull();
+    const { data } = await anon().from('trip_images').select('id').eq('trip_id', trip.id);
+    expect(data?.map((r) => r.id)).toEqual([withAlt.id]);
+    const { data: adminView } = await organizer.client.from('trip_images').select('id').eq('trip_id', trip.id);
+    expect(adminView).toHaveLength(2);
+  });
+
+  it('admins reorder photos in one call; bad lists and non-admins are refused', async () => {
+    const trip = await makeTrip({ status: 'draft' });
+    const imgs = [image(trip.id), image(trip.id), image(trip.id)];
+    await service.from('trip_images').insert(imgs);
+    const order = [imgs[2]!.id, imgs[0]!.id, imgs[1]!.id];
+    expect((await organizer.client.rpc('admin_reorder_images', { p_trip_id: trip.id, p_ids: order })).error).toBeNull();
+    const { data } = await service.from('trip_images').select('id').eq('trip_id', trip.id).order('sort_order');
+    expect(data?.map((r) => r.id)).toEqual(order);
+
+    const partial = await organizer.client.rpc('admin_reorder_images', { p_trip_id: trip.id, p_ids: order.slice(1) });
+    expect(partial.error?.message).toBe('invalid_input');
+    const dup = await organizer.client.rpc('admin_reorder_images', { p_trip_id: trip.id, p_ids: [order[0]!, order[0]!, order[1]!] });
+    expect(dup.error?.message).toBe('invalid_input');
+    expect(denied(await noMfa.client.rpc('admin_reorder_images', { p_trip_id: trip.id, p_ids: order }))).toBe(true);
+    expect(denied(await anon().rpc('admin_reorder_images', { p_trip_id: trip.id, p_ids: order }))).toBe(true);
+  });
+
+  it('exports are recorded with who, what, filters and row count', async () => {
+    const tripId = randomUUID();
+    const args = { p_entity: 'reservations', p_entity_id: tripId, p_rows: 7, p_filter: { status: 'confirmed', q: 'ali' } };
+    expect((await organizer.client.rpc('log_export', args)).error).toBeNull();
+    const { data } = await service.from('audit_log').select('*').eq('action', 'export').eq('entity_id', tripId).single();
+    expect(data).toMatchObject({ actor_user_id: organizer.id, entity: 'reservations', before: null, after: { rows: 7, filter: { status: 'confirmed', q: 'ali' } } });
+
+    // Filters are optional; members exports have no entity id.
+    expect((await organizer.client.rpc('log_export', { p_entity: 'members', p_entity_id: '', p_rows: 0 })).error).toBeNull();
+
+    for (const bad of [
+      { ...args, p_entity: 'audit_log' },
+      { ...args, p_rows: -1 },
+      { ...args, p_filter: [1, 2] },
+      { ...args, p_filter: { q: 'x'.repeat(1200) } },
+      { ...args, p_entity_id: 'x'.repeat(201) },
+    ]) {
+      expect((await organizer.client.rpc('log_export', bad as never)).error?.message, JSON.stringify(bad).slice(0, 60)).toBe('invalid_input');
+    }
+    for (const [label, client] of [['no MFA', noMfa.client], ['user', user.client], ['anon', anon()]] as const) {
+      expect((await client.rpc('log_export', args)).error, label).not.toBeNull();
+    }
+    const { count } = await service.from('audit_log').select('id', { count: 'exact', head: true }).eq('action', 'export').eq('entity_id', tripId);
+    expect(count).toBe(1);
+  });
 });
+
+function image(tripId: string) {
+  const id = randomUUID();
+  const path = (size: string) => `trips/${tripId}/${id}-${size}.webp`;
+  return { id, trip_id: tripId, kind: 'poster' as const, path_sm: path('sm'), path_md: path('md'), path_lg: path('lg'), width: 1080, height: 1350 };
+}

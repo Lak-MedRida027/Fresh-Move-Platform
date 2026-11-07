@@ -2,9 +2,12 @@
  * Helpers for database tests. They run ONLY against the local Supabase stack
  * (see scripts/with-local-supabase.mjs); a guard refuses any other host.
  */
-import { createHmac, randomInt, randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../../src/lib/database.types';
+import { totp } from '../totp';
+
+export { totp };
 
 export type DB = SupabaseClient<Database>;
 
@@ -23,28 +26,6 @@ if (host !== '127.0.0.1' && host !== 'localhost') {
 const opts = { auth: { persistSession: false, autoRefreshToken: false } };
 export const service: DB = createClient<Database>(URL_, SECRET, opts);
 export const anon = (): DB => createClient<Database>(URL_, PUBLISHABLE, opts);
-
-// ---------------------------------------------------------------------------
-// TOTP (RFC 6238) for the MFA step
-// ---------------------------------------------------------------------------
-function base32Decode(input: string): Buffer {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-  const clean = input.replace(/=+$/, '').toUpperCase();
-  let bits = '';
-  for (const ch of clean) bits += alphabet.indexOf(ch).toString(2).padStart(5, '0');
-  const bytes: number[] = [];
-  for (let i = 0; i + 8 <= bits.length; i += 8) bytes.push(parseInt(bits.slice(i, i + 8), 2));
-  return Buffer.from(bytes);
-}
-
-export function totp(secret: string, at = Date.now()): string {
-  const counter = Buffer.alloc(8);
-  counter.writeBigUInt64BE(BigInt(Math.floor(at / 1000 / 30)));
-  const hmac = createHmac('sha1', base32Decode(secret)).update(counter).digest();
-  const offset = hmac[hmac.length - 1]! & 0xf;
-  const code = (hmac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000;
-  return String(code).padStart(6, '0');
-}
 
 // ---------------------------------------------------------------------------
 // Users
@@ -87,8 +68,12 @@ export async function makeUser(opts: { role?: 'owner' | 'organizer'; mfa?: boole
 // ---------------------------------------------------------------------------
 // Data
 // ---------------------------------------------------------------------------
+/** Phones handed out here: their members are deleted after each test file. */
+const phones = new Set<string>();
 export function phone(): string {
-  return `+2135${String(randomInt(0, 99_999_999)).padStart(8, '0')}`;
+  const p = `+2135${String(randomInt(0, 99_999_999)).padStart(8, '0')}`;
+  phones.add(p);
+  return p;
 }
 
 function dateFromToday(days: number): string {
@@ -167,4 +152,36 @@ export function denied(result: { error: unknown; data: unknown }): boolean {
   if (result.error) return true;
   if (Array.isArray(result.data)) return result.data.length === 0;
   return result.data == null;
+}
+
+// ---------------------------------------------------------------------------
+// Cleanup (tests/db/setup.ts runs this after every test file). The e2e suite
+// uses the same local database: leftover public "test trips" made the public
+// pages heavier with every run, until they timed out.
+// ---------------------------------------------------------------------------
+export async function cleanupTestData(): Promise<void> {
+  const { data: trips } = await service.from('trips').select('id').like('slug', 'test-trip-%');
+  const ids = (trips ?? []).map((t) => t.id);
+  for (let i = 0; i < ids.length; i += 100) {
+    const chunk = ids.slice(i, i + 100);
+    await service.from('trips').update({ cover_image_id: null }).in('id', chunk);
+    await service.from('reservations').delete().in('trip_id', chunk);
+    for (const id of chunk) {
+      const { data: files } = await service.storage.from('trip-images').list(`trips/${id}`);
+      if (files?.length) await service.storage.from('trip-images').remove(files.map((x) => `trips/${id}/${x.name}`));
+    }
+    const { error } = await service.from('trips').delete().in('id', chunk);
+    if (error) throw new Error(`cleanup trips: ${error.message}`);
+  }
+  const used = [...phones];
+  for (let i = 0; i < used.length; i += 100) await service.from('members').delete().in('phone', used.slice(i, i + 100));
+  phones.clear();
+  // Test accounts. (Deleting the last owner is refused by the database; the e2e owners
+  // always exist, and a refused delete only leaves that one account behind.)
+  for (let page = 1; ; page++) {
+    const { data } = await service.auth.admin.listUsers({ page, perPage: 1000 });
+    const users = (data?.users ?? []).filter((u) => /^test-[0-9a-f-]{36}@example.test$/.test(u.email ?? ''));
+    for (const u of users) await service.auth.admin.deleteUser(u.id);
+    if ((data?.users.length ?? 0) < 1000) break;
+  }
 }

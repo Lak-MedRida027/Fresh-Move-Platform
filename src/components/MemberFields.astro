@@ -1,0 +1,137 @@
+---
+/**
+ * The person fields shared by the membership and reservation forms: name,
+ * phone/WhatsApp, wilaya, age, consent, plus the error summary, honeypot and
+ * Turnstile. Behaviour lives in src/scripts/member-form.ts.
+ */
+import Icon from './Icon.astro';
+import { MIN_AGE } from '../config/site';
+import { WILAYAS, wilayaLabel } from '../data/wilayas';
+import { localizePath, useTranslations, type Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+  idPrefix: string;
+  consentLabel: string;
+}
+const { locale, idPrefix, consentLabel } = Astro.props;
+const t = useTranslations(locale);
+const id = (name: string) => `${idPrefix}-${name}`;
+---
+
+<div class="form__summary" tabindex="-1" aria-live="assertive" data-error-summary hidden>
+  <p class="form__summary-title">{t('form.errorSummary')}</p>
+  <ul data-error-list></ul>
+</div>
+
+<p class="form__note muted">{t('form.allRequired')}</p>
+
+<div class="field">
+  <label class="field__label" for={id('name')}>{t('form.name.label')}</label>
+  <p class="field__hint" id={id('name-hint')}>{t('form.name.hint')}</p>
+  <input
+    class="field__input"
+    id={id('name')}
+    name="fullName"
+    type="text"
+    autocomplete="name"
+    autocapitalize="words"
+    maxlength="60"
+    required
+    aria-describedby={`${id('name-hint')} ${id('name-error')}`}
+    data-field="fullName"
+  />
+  <p class="field__error" id={id('name-error')} data-error-for="fullName" hidden></p>
+</div>
+
+<div class="field">
+  <label class="field__label" for={id('phone')}>{t('form.phone.label')}</label>
+  <p class="field__hint" id={id('phone-hint')}>{t('form.phone.hint')}</p>
+  <input
+    class="field__input field__input--ltr"
+    id={id('phone')}
+    name="phone"
+    type="tel"
+    inputmode="tel"
+    autocomplete="tel"
+    dir="ltr"
+    maxlength="20"
+    required
+    aria-describedby={`${id('phone-hint')} ${id('phone-error')}`}
+    data-field="phone"
+  />
+  <p class="field__error" id={id('phone-error')} data-error-for="phone" hidden></p>
+</div>
+
+<div class="field-row">
+  <div class="field">
+    <label class="field__label" for={id('wilaya')}>{t('form.wilaya.label')}</label>
+    <div class="field__select">
+      <select
+        class="field__input"
+        id={id('wilaya')}
+        name="wilaya"
+        required
+        aria-describedby={id('wilaya-error')}
+        data-field="wilaya"
+      >
+        <option value="">{t('form.wilaya.placeholder')}</option>
+        {WILAYAS.map((w) => <option value={w.code}>{wilayaLabel(w, locale)}</option>)}
+      </select>
+      <Icon name="chevron-down" size={18} class="field__select-icon" />
+    </div>
+    <p class="field__error" id={id('wilaya-error')} data-error-for="wilaya" hidden></p>
+  </div>
+
+  <div class="field field--age">
+    <label class="field__label" for={id('age')}>{t('form.age.label')}</label>
+    <input
+      class="field__input field__input--ltr"
+      id={id('age')}
+      name="age"
+      type="text"
+      inputmode="numeric"
+      autocomplete="off"
+      dir="ltr"
+      maxlength="3"
+      required
+      aria-describedby={`${id('age-hint')} ${id('age-error')}`}
+      data-field="age"
+    />
+    <p class="field__hint" id={id('age-hint')}>{t('form.age.hint', { minAge: MIN_AGE })}</p>
+    <p class="field__error" id={id('age-error')} data-error-for="age" hidden></p>
+  </div>
+</div>
+
+<!-- Honeypot: hidden from people and assistive tech; bots tend to fill it. -->
+<div class="form__trap" aria-hidden="true">
+  <label for={id('website')}>{t('form.honeypot')}</label>
+  <input id={id('website')} name="website" type="text" tabindex="-1" autocomplete="off" />
+</div>
+
+<div class="field field--check">
+  <div class="check">
+    <input
+      class="check__box"
+      id={id('consent')}
+      name="consent"
+      type="checkbox"
+      required
+      aria-describedby={id('consent-error')}
+      data-field="consent"
+    />
+    <label class="check__label" for={id('consent')}>{consentLabel}</label>
+  </div>
+  <a class="check__link" href={localizePath('/privacy/', locale)}>{t('form.consent.privacy')}</a>
+  <p class="field__error" id={id('consent-error')} data-error-for="consent" hidden></p>
+</div>
+
+<!-- Cloudflare Turnstile (loaded on first interaction, see src/scripts/turnstile.ts) -->
+<div
+  class="form__turnstile"
+  data-turnstile
+  data-sitekey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY}
+  aria-label={t('form.turnstileLabel')}
+  role="group"
+>
+</div>

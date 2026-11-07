@@ -1,0 +1,60 @@
+---
+/**
+ * A trip photo from Storage: responsive srcset (sm/md/lg), explicit size (no
+ * layout shift), and a tiny blurred placeholder underneath while it loads.
+ * The placeholder is a separate data: image because inline style attributes
+ * are blocked by the CSP.
+ */
+import type { Locale } from '../i18n';
+import type { TripImage } from '../lib/trips';
+
+interface Props {
+  image: TripImage;
+  locale: Locale;
+  sizes: string;
+  /** Override the stored alt text (e.g. decorative card images use ""). */
+  alt?: string;
+  eager?: boolean;
+  class?: string;
+}
+const { image, locale, sizes, alt, eager = false, class: className = '' } = Astro.props;
+---
+
+<span class:list={['trip-photo', className]}>
+  {image.placeholder && <img class="trip-photo__ph" src={image.placeholder} alt="" aria-hidden="true" />}
+  <img
+    class="trip-photo__img"
+    src={image.src}
+    srcset={image.srcset}
+    sizes={sizes}
+    width={image.width}
+    height={image.height}
+    alt={alt ?? image.alt[locale]}
+    loading={eager ? 'eager' : 'lazy'}
+    fetchpriority={eager ? 'high' : undefined}
+    decoding="async"
+  />
+</span>
+
+<style>
+  .trip-photo {
+    position: relative;
+    display: block;
+    inline-size: 100%;
+    block-size: 100%;
+    overflow: hidden;
+    background: var(--burnt-earth);
+  }
+  .trip-photo__ph,
+  .trip-photo__img {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+  }
+  .trip-photo__ph {
+    filter: blur(14px);
+    transform: scale(1.1);
+  }
+</style>

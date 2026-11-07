@@ -1,0 +1,197 @@
+---
+/**
+ * Trip photos: upload (resized and stripped in the browser), alt text in both
+ * languages, poster / gallery, cover, order, delete. Upload needs JavaScript;
+ * everything else is plain forms.
+ */
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import TripTabs from '../../components/admin/TripTabs.astro';
+import { adminT, type AdminKey } from '../../i18n/admin';
+import type { Locale } from '../../i18n';
+import { adminPath } from '../../lib/admin/paths';
+import { formatBytes } from '../../lib/admin/data';
+import { storageUrl } from '../../lib/media';
+
+interface Props {
+  locale: Locale;
+  id: string;
+}
+const { locale, id } = Astro.props;
+const t = adminT(locale);
+const sb = Astro.locals.admin!.supabase;
+const [{ data: trip }, { data: images }, { data: usage }] = await Promise.all([
+  sb.from('trips').select('id, title_ar, title_en, status, cover_image_id').eq('id', id).maybeSingle(),
+  sb.from('trip_images').select('*').eq('trip_id', id).order('sort_order').order('created_at'),
+  sb.rpc('admin_storage_usage'),
+]);
+const photos = images ?? [];
+const back = adminPath(locale, `/trips/${id}/photos/`);
+const missingAlt = photos.filter((p) => !p.alt_ar.trim() || !p.alt_en.trim()).length;
+const tripBytes = photos.reduce((n, p) => n + p.size_bytes, 0);
+const storage = usage as { bytes: number; quota_bytes: number } | null;
+const used = storage?.bytes ?? 0;
+const quota = storage?.quota_bytes || 1073741824;
+const percent = Math.min(100, Math.round((used / quota) * 100));
+const defaultKind = trip?.status === 'completed' ? 'gallery' : 'poster';
+const title = trip ? (locale === 'ar' ? trip.title_ar : trip.title_en) : t('error.not_found');
+
+// Messages for the upload script (data attribute: no inline script under the CSP).
+const msgKeys = [
+  'photos.processing',
+  'photos.uploading',
+  'photos.saving',
+  'photos.done',
+  'photos.showAll',
+  'photos.err.too_big',
+  'photos.err.not_image',
+  'photos.err.unsupported',
+  'photos.err.too_small',
+  'photos.err.encode_failed',
+  'photos.err.upload_failed',
+  'photos.err.upload_incomplete',
+  'photos.err.too_many_images',
+  'photos.err.forbidden',
+  'photos.err.generic',
+] as const satisfies readonly AdminKey[];
+const messages = Object.fromEntries(msgKeys.map((k) => [k.replace(/^photos\./, ''), t(k)]));
+---
+
+<AdminLayout locale={locale} title={`${t('tab.photos')} · ${title}`}>
+  <a href={adminPath(locale, '/trips/')}>← {t('nav.trips')}</a>
+  <h1>{title}</h1>
+  {trip && <TripTabs locale={locale} tripId={id} current="photos" />}
+
+  {
+    trip && (
+      <>
+        <section class="panel" aria-labelledby="up-h" data-uploader data-trip={id} data-back={back} data-messages={JSON.stringify(messages)}>
+          <h2 id="up-h">{t('photos.upload')}</h2>
+          <p class="muted-sm">{t('photos.uploadHelp')}</p>
+          <p class="muted-sm" data-storage>
+            {t('overview.storage')} · {t('overview.storageUse', { used: formatBytes(used, locale), quota: formatBytes(quota, locale), percent })}
+          </p>
+          {percent >= 80 && <p class="admin-flash admin-flash--error" role="status">{t('overview.storageWarn')}</p>}
+          <noscript>
+            <p class="admin-flash admin-flash--error">{t('photos.needsJs')}</p>
+          </noscript>
+          <fieldset class="checks">
+            <legend class="field__label">{t('photos.kind')}</legend>
+            {(['poster', 'gallery'] as const).map((k) => (
+              <label>
+                <input type="radio" name="upload-kind" value={k} checked={k === defaultKind} /> {t(`kind.${k}`)}
+              </label>
+            ))}
+          </fieldset>
+          {/* Styled label instead of the browser's file button, whose text follows the browser's language. */}
+          <label class="btn btn-primary photo-pick">
+            <input class="visually-hidden" id="photo-files" type="file" accept="image/*" multiple data-files disabled />
+            <span>{t('photos.choose')}</span>
+          </label>
+          <ul class="upload-list" data-progress aria-live="polite"></ul>
+        </section>
+
+        <section class="panel" aria-labelledby="list-h">
+          <div class="panel__head">
+            <h2 id="list-h">{t('photos.list')}</h2>
+            <span class="muted-sm" data-photo-count>{t('photos.count', { count: photos.length, size: formatBytes(tripBytes, locale) })}</span>
+          </div>
+          {missingAlt > 0 && (
+            <p class="admin-flash admin-flash--error" role="status" data-missing-alt>
+              {t('photos.missingAltCount', { count: missingAlt })}
+            </p>
+          )}
+          {photos.length === 0 && <p class="muted">{t('photos.empty')}</p>}
+          <ol class="photo-list">
+            {photos.map((p, i) => {
+              const isCover = trip.cover_image_id === p.id;
+              const hidden = (action: string) => (
+                <>
+                  <input type="hidden" name="lang" value={locale} />
+                  <input type="hidden" name="back" value={back} />
+                  <input type="hidden" name="id" value={p.id} />
+                  <input type="hidden" name="action" value={action} />
+                </>
+              );
+              const altMissing = !p.alt_ar.trim() || !p.alt_en.trim();
+              return (
+                <li class="photo-card" data-photo={p.id} data-kind={p.kind}>
+                  <div class="photo-card__media">
+                    <img
+                      src={storageUrl(p.path_sm)}
+                      width={p.width}
+                      height={p.height}
+                      alt={(locale === 'ar' ? p.alt_ar : p.alt_en) || ''}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <p class="photo-card__badges">
+                      <span class="muted-sm">{t('photos.position', { n: i + 1, total: photos.length })}</span>
+                      <span class="pill">{t(p.kind === 'poster' ? 'kind.poster' : 'kind.gallery')}</span>
+                      {isCover && <span class="pill" data-status="open" data-cover>{t('photos.cover')}</span>}
+                      {altMissing && <span class="pill" data-status="cancelled">{t('photos.missingAlt')}</span>}
+                    </p>
+                  </div>
+                  <form class="form photo-card__form" method="post" action="/admin/api/photos/" data-photo-form>
+                    {hidden('save')}
+                    <div class="field">
+                      <label class="field__label" for={`k-${p.id}`}>{t('photos.kind')}</label>
+                      <select class="field__input" id={`k-${p.id}`} name="kind">
+                        {(['poster', 'gallery'] as const).map((k) => (
+                          <option value={k} selected={k === p.kind}>{t(`kind.${k}`)}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label class="field__label" for={`aa-${p.id}`}>{t('photos.altAr')}</label>
+                      <textarea class="field__input" id={`aa-${p.id}`} name="alt_ar" lang="ar" dir="rtl" rows="2" maxlength="300" aria-describedby={`ah-${p.id}`}>{p.alt_ar}</textarea>
+                    </div>
+                    <div class="field">
+                      <label class="field__label" for={`ae-${p.id}`}>{t('photos.altEn')}</label>
+                      <textarea class="field__input" id={`ae-${p.id}`} name="alt_en" lang="en" dir="ltr" rows="2" maxlength="300" aria-describedby={`ah-${p.id}`}>{p.alt_en}</textarea>
+                    </div>
+                    <p class="muted-sm" id={`ah-${p.id}`}>{t('photos.altHelp')}</p>
+                    <button class="btn btn-primary btn-sm" type="submit">{t('save')}</button>
+                  </form>
+                  <div class="actions">
+                    {!isCover && (
+                      <form method="post" action="/admin/api/photos/">
+                        {hidden('cover')}
+                        <button class="btn btn-ghost btn-sm" type="submit">{t('photos.makeCover')}</button>
+                      </form>
+                    )}
+                    {i > 0 && (
+                      <form method="post" action="/admin/api/photos/">
+                        {hidden('up')}
+                        <button class="btn btn-ghost btn-sm" type="submit" data-move="up">{t('photos.up')}</button>
+                      </form>
+                    )}
+                    {i < photos.length - 1 && (
+                      <form method="post" action="/admin/api/photos/">
+                        {hidden('down')}
+                        <button class="btn btn-ghost btn-sm" type="submit" data-move="down">{t('photos.down')}</button>
+                      </form>
+                    )}
+                    <details class="action-menu">
+                      <summary>{t('photos.more')}</summary>
+                      <div class="action-menu__body">
+                        <form method="post" action="/admin/api/photos/" class="inline-form">
+                          {hidden('delete')}
+                          <p class="muted-sm">{t('photos.deleteHelp')}</p>
+                          <button class="btn btn-danger btn-sm" type="submit" data-delete-photo>{t('photos.delete')}</button>
+                        </form>
+                      </div>
+                    </details>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      </>
+    )
+  }
+</AdminLayout>
+
+<script>
+  import '../../scripts/admin-photos.ts';
+</script>

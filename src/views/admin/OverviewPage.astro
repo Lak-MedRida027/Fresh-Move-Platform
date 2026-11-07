@@ -1,0 +1,104 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import SeatBar from '../../components/admin/SeatBar.astro';
+import ReservationTable from '../../components/admin/ReservationTable.astro';
+import { adminT } from '../../i18n/admin';
+import type { Locale } from '../../i18n';
+import { formatBytes, loadOverview } from '../../lib/admin/data';
+import { adminPath } from '../../lib/admin/paths';
+import { formatDateRange, formatDateTime } from '../../lib/dates';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = adminT(locale);
+const admin = Astro.locals.admin!;
+const data = await loadOverview(admin.supabase);
+const back = adminPath(locale, '/');
+const used = data.storage.bytes;
+const quota = data.storage.quota_bytes || 1073741824;
+const percent = Math.round((used / quota) * 100);
+const jobsBad = data.jobs.some((j) => j.state === 'late' || j.state === 'failed');
+---
+
+<AdminLayout locale={locale} title={t('overview.title')}>
+  <h1>{t('overview.title')}</h1>
+
+  <div class="grid-auto">
+    <div class="stat-card" data-stat="pending">
+      <span class="stat-card__value">{data.pending}</span>
+      <span class="stat-card__label">{t('overview.pending')}</span>
+    </div>
+    <div class="stat-card" data-stat="waitlist">
+      <span class="stat-card__value">{data.waitlist}</span>
+      <span class="stat-card__label">{t('overview.waitlist')}</span>
+    </div>
+    <div class="stat-card" data-stat="storage">
+      <span class="stat-card__value">{percent}%</span>
+      <span class="stat-card__label">
+        {t('overview.storage')} · {t('overview.storageUse', { used: formatBytes(used, locale), quota: formatBytes(quota, locale), percent })}
+      </span>
+    </div>
+  </div>
+  {percent >= 80 && <p class="admin-flash admin-flash--error" role="status" data-storage-warning>{t('overview.storageWarn')}</p>}
+  {jobsBad && <p class="admin-flash admin-flash--error" role="status" data-jobs-warning>{t('overview.jobsWarn')}</p>}
+
+  <section class="panel" aria-labelledby="ov-upcoming">
+    <div class="panel__head">
+      <h2 id="ov-upcoming">{t('overview.upcoming')}</h2>
+      <a class="btn btn-primary btn-sm" href={adminPath(locale, '/trips/new/')}>{t('trips.new')}</a>
+    </div>
+    {data.upcoming.length === 0 && <p class="muted">{t('overview.noUpcoming')}</p>}
+    <div class="grid-auto">
+      {
+        data.upcoming.map(({ trip, counts }) => (
+          <article class="stat-card" data-upcoming-trip={trip.slug}>
+            <h3>
+              <a href={adminPath(locale, `/trips/${trip.id}/reservations/`)}>{locale === 'ar' ? trip.title_ar : trip.title_en}</a>
+            </h3>
+            <p class="muted-sm">
+              {trip.start_date && formatDateRange(trip.start_date, trip.end_date, locale)} ·{' '}
+              <span class="pill" data-status={trip.status}>
+                {t(`tstatus.${trip.status}` as 'tstatus.open')}
+              </span>
+            </p>
+            <SeatBar locale={locale} capacity={trip.capacity} counts={counts} />
+          </article>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="ov-expiring">
+    <h2 id="ov-expiring">{t('overview.expiring')}</h2>
+    <ReservationTable locale={locale} rows={data.expiring} back={back} />
+  </section>
+
+  <section class="panel" aria-labelledby="ov-latest">
+    <h2 id="ov-latest">{t('overview.latest')}</h2>
+    <ReservationTable locale={locale} rows={data.latest} back={back} />
+  </section>
+
+  <section class="panel" aria-labelledby="ov-jobs">
+    <h2 id="ov-jobs">{t('overview.jobs')}</h2>
+    <ul class="job-list">
+      {
+        data.jobs.map((j) => (
+          <li data-job={j.job} data-state={j.state}>
+            <span>{t(j.job === 'frequent' ? 'overview.job.frequent' : 'overview.job.daily')}</span>
+            <span class="muted-sm">
+              {j.last ? t('overview.jobLast', { when: formatDateTime(j.last, locale) }) : t('overview.jobNever')}
+              {j.state !== 'never' && (
+                <>
+                  {' · '}
+                  <strong>{t(j.state === 'ok' ? 'overview.jobOk' : j.state === 'late' ? 'overview.jobLate' : 'overview.jobFailed')}</strong>
+                </>
+              )}
+            </span>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+</AdminLayout>

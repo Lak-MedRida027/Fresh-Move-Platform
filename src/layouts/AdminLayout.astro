@@ -1,0 +1,140 @@
+---
+/**
+ * Admin shell: same brand tokens, theme bootstrap and language switch as the
+ * public site, built for phones (sticky top bar, big targets). Shows the flash
+ * message from ?ok= / ?error= after every action. Never indexed or cached.
+ */
+import '../styles/global.css';
+import '../styles/admin.css';
+import Logo from '../components/Logo.astro';
+import Icon from '../components/Icon.astro';
+import ThemeToggle from '../components/ThemeToggle.astro';
+import { THEME_INIT_SCRIPT } from '../scripts/theme-init';
+import { LOCALE_META, localizePath, type Locale } from '../i18n';
+import { adminT, hasAdminKey } from '../i18n/admin';
+import { adminPath } from '../lib/admin/paths';
+
+interface Props {
+  locale: Locale;
+  title: string;
+  /** Hide navigation (login / MFA pages). */
+  bare?: boolean;
+}
+const { locale, title, bare = false } = Astro.props;
+const t = adminT(locale);
+const meta = LOCALE_META[locale];
+const role = Astro.locals.admin?.role;
+const path = Astro.url.pathname;
+const other = locale === 'ar' ? 'en' : 'ar';
+const otherPath = (locale === 'en' ? path.replace(/^\/en/, '') : `/en${path}`) + Astro.url.search;
+
+const nav = [
+  { href: adminPath(locale, '/'), label: t('nav.overview'), match: /^\/(en\/)?admin\/?$/ },
+  { href: adminPath(locale, '/trips/'), label: t('nav.trips'), match: /\/admin\/trips/ },
+  { href: adminPath(locale, '/reservations/'), label: t('nav.reservations'), match: /\/admin\/reservations/ },
+  { href: adminPath(locale, '/members/'), label: t('nav.members'), match: /\/admin\/members/ },
+  ...(role === 'owner'
+    ? [
+        { href: adminPath(locale, '/admins/'), label: t('nav.admins'), match: /\/admin\/admins/ },
+        { href: adminPath(locale, '/audit/'), label: t('nav.audit'), match: /\/admin\/audit/ },
+        { href: adminPath(locale, '/settings/'), label: t('nav.settings'), match: /\/admin\/settings/ },
+      ]
+    : []),
+];
+
+const okCode = Astro.url.searchParams.get('ok') ?? '';
+const errorCode = Astro.url.searchParams.get('error') ?? '';
+const okKey = `ok.${okCode}`;
+const errorKey = `error.${errorCode}`;
+const count = Astro.url.searchParams.get('n') ?? '';
+const flash = okCode
+  ? { kind: 'ok', text: hasAdminKey(okKey) ? t(okKey, { count }) : t('ok.saved') }
+  : errorCode
+    ? { kind: 'error', text: hasAdminKey(errorKey) ? t(errorKey) : t('error.generic') }
+    : null;
+---
+
+<!doctype html>
+<html lang={meta.lang} dir={meta.dir}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <script is:inline set:html={THEME_INIT_SCRIPT} />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{`${title} · ${t('admin.title')} · Fresh Move`}</title>
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  </head>
+  <body class="admin">
+    <a class="skip-link" href="#main">{locale === 'ar' ? 'روح للمحتوى' : 'Skip to content'}</a>
+    <header class="admin-bar">
+      <div class="admin-bar__inner">
+        <a class="admin-bar__brand" href={adminPath(locale, '/')}>
+          <Logo size={36} alt="" eager />
+          <span>{t('admin.title')}</span>
+        </a>
+        <div class="admin-bar__tools">
+          <a class="admin-chip" href={otherPath} hreflang={LOCALE_META[other].hreflang} lang={LOCALE_META[other].lang}>
+            {other === 'en' ? 'English' : 'عربي'}
+          </a>
+          <ThemeToggle locale={locale} />
+          {
+            !bare && (
+              <button
+                type="button"
+                class="icon-btn admin-bar__menu"
+                aria-expanded="false"
+                aria-controls="admin-nav"
+                aria-label={t('nav.menu')}
+                data-menu-toggle
+              >
+                <Icon name="menu" size={22} class="menu-open" />
+                <Icon name="close" size={22} class="menu-close" />
+              </button>
+            )
+          }
+        </div>
+      </div>
+      {
+        !bare && (
+          <nav class="admin-nav" id="admin-nav" aria-label={t('nav.main')} data-nav>
+            <ul role="list">
+              {nav.map((item) => (
+                <li>
+                  <a href={item.href} aria-current={item.match.test(path) ? 'page' : undefined}>
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+              <li>
+                <a href={localizePath('/', locale)}>{t('nav.site')}</a>
+              </li>
+              <li>
+                <form method="post" action="/admin/api/logout/">
+      <input type="hidden" name="lang" value={locale} />
+                  <button type="submit" class="admin-nav__logout">
+                    {t('logout')}
+                  </button>
+                </form>
+              </li>
+            </ul>
+          </nav>
+        )
+      }
+    </header>
+
+    <main id="main" tabindex="-1" class="admin-main">
+      {
+        flash && (
+          <p class:list={['admin-flash', `admin-flash--${flash.kind}`]} role={flash.kind === 'error' ? 'alert' : 'status'} data-flash={flash.kind}>
+            {flash.text}
+          </p>
+        )
+      }
+      <slot />
+    </main>
+
+    <script>
+      import '../scripts/site.ts';
+    </script>
+  </body>
+</html>

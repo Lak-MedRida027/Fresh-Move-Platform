@@ -116,8 +116,11 @@ test('no CSP violations or script errors on any page', async ({ page }) => {
   // (/404/ is left out: it answers with HTTP 404, which browsers log by design.)
   const paths = ['/', '/trips/', '/trips/djanet-tassili/', '/join/', '/privacy/'];
   for (const path of [...paths, ...paths.map((p) => `/en${p}`)]) {
-    await page.goto(path);
-    await page.waitForLoadState('networkidle');
+    // goto waits for "load" (every script has run, every eager resource was requested, so any
+    // CSP violation has fired). Not "networkidle": one slow image from the local storage
+    // container (busy with upload tests) kept that from ever settling under full load.
+    await page.goto(path, { waitUntil: 'load' });
+    await page.waitForTimeout(300); // late scripts (timers, idle work)
   }
   // Open the lightbox and submit the form too (they load their own scripts).
   await page.goto('/trips/jijel/');

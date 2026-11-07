@@ -62,6 +62,8 @@
   /* Derived roles (picked for WCAG AA contrast, see docs/DEBUG_LOG.md) */
   --link: var(--accent-olive-light);
   --focus: var(--accent-olive-light);
+  /* Desert Gold for small text (prices): AA on surfaces in both themes */
+  --sand-text: var(--accent-sand);
   --btn-bg: var(--accent-olive);
   --btn-bg-hover: #5d6a27;
   --btn-fg: var(--white); /* 4.7:1 on #6B7A2E; off-white would be 3.7:1 */
@@ -93,6 +95,7 @@
   --accent-sky: #4a7a92;
 
   --link: var(--accent-olive); /* olive-light is only 3.1:1 on the light bg */
+  --sand-text: #7a6534; /* #A08548 is 3.5:1 on white; this is 5.6:1 */
   --focus: var(--accent-olive);
   --btn-bg: var(--accent-olive);
   --btn-bg-hover: #4a5820;
@@ -125,6 +128,7 @@
     --accent-forest: #2e4a2e;
     --accent-sky: #4a7a92;
     --link: var(--accent-olive);
+    --sand-text: #7a6534;
     --focus: var(--accent-olive);
     --btn-bg: var(--accent-olive);
     --btn-bg-hover: #4a5820;

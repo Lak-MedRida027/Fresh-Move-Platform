@@ -1,0 +1,96 @@
+---
+/** Owner only: invite admins, change roles, remove. */
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { adminT } from '../../i18n/admin';
+import type { Locale } from '../../i18n';
+import { adminPath } from '../../lib/admin/paths';
+import { formatDateTime } from '../../lib/dates';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = adminT(locale);
+const admin = Astro.locals.admin!;
+const { data: admins } = await admin.supabase.from('admin_users').select('*').order('created_at');
+const back = adminPath(locale, '/admins/');
+---
+
+<AdminLayout locale={locale} title={t('adm.title')}>
+  <h1>{t('adm.title')}</h1>
+  <table class="atable" data-admins>
+    <thead>
+      <tr>
+        <th scope="col">{t('adm.name')}</th>
+        <th scope="col">{t('adm.role')}</th>
+        <th scope="col">{t('mem.joined')}</th>
+        <th scope="col">{t('res.actions')}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        (admins ?? []).map((a) => (
+          <tr>
+            <td data-label={t('adm.name')}>
+              {a.display_name || a.user_id.slice(0, 8)} {a.user_id === admin.userId && <span class="muted-sm">{t('adm.you')}</span>}
+            </td>
+            <td data-label={t('adm.role')}>
+              <form method="post" action="/admin/api/admins/" class="actions">
+                <input type="hidden" name="lang" value={locale} />
+                <input type="hidden" name="back" value={back} />
+                <input type="hidden" name="user_id" value={a.user_id} />
+                <input type="hidden" name="action" value="role" />
+                <label class="visually-hidden" for={`role-${a.user_id}`}>{t('adm.role')}</label>
+                <select class="field__input btn-sm" id={`role-${a.user_id}`} name="role">
+                  <option value="organizer" selected={a.role === 'organizer'}>{t('role.organizer')}</option>
+                  <option value="owner" selected={a.role === 'owner'}>{t('role.owner')}</option>
+                </select>
+                <button class="btn btn-ghost btn-sm" type="submit">{t('save')}</button>
+              </form>
+            </td>
+            <td data-label={t('mem.joined')}>{formatDateTime(a.created_at, locale)}</td>
+            <td data-label="">
+              {a.user_id !== admin.userId && (
+                <form method="post" action="/admin/api/admins/">
+                  <input type="hidden" name="lang" value={locale} />
+                  <input type="hidden" name="back" value={back} />
+                  <input type="hidden" name="user_id" value={a.user_id} />
+                  <input type="hidden" name="action" value="remove" />
+                  <button class="btn btn-danger btn-sm" type="submit">{t('adm.remove')}</button>
+                </form>
+              )}
+            </td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+
+  <section class="panel" aria-labelledby="invite-title">
+    <h2 id="invite-title">{t('adm.invite')}</h2>
+    <p class="muted-sm">{t('adm.inviteHelp')}</p>
+    <form class="form" method="post" action="/admin/api/admins/">
+      <input type="hidden" name="lang" value={locale} />
+      <input type="hidden" name="back" value={back} />
+      <input type="hidden" name="action" value="invite" />
+      <div class="grid-auto">
+        <div class="field">
+          <label class="field__label" for="inv-email">{t('adm.email')}</label>
+          <input class="field__input field__input--ltr" id="inv-email" name="email" type="email" dir="ltr" required maxlength="200" />
+        </div>
+        <div class="field">
+          <label class="field__label" for="inv-name">{t('adm.name')}</label>
+          <input class="field__input" id="inv-name" name="display_name" maxlength="80" />
+        </div>
+        <div class="field">
+          <label class="field__label" for="inv-role">{t('adm.role')}</label>
+          <select class="field__input" id="inv-role" name="role">
+            <option value="organizer">{t('role.organizer')}</option>
+            <option value="owner">{t('role.owner')}</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" type="submit">{t('adm.invite')}</button>
+    </form>
+  </section>
+</AdminLayout>

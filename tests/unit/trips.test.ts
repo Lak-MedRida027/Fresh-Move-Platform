@@ -5,12 +5,13 @@ import { parse } from 'yaml';
 import { z } from 'astro/zod';
 import { REGION_IDS } from '../../src/data/regions';
 import { tripSchema } from '../../src/lib/trip-schema';
-import { formatTripDate, sortTrips } from '../../src/lib/trips';
+import { formatTripDate, sortTrips, toTrip, type Trip } from '../../src/lib/trips';
+import { srcset } from '../../src/lib/media';
 
 // Astro's content loaders don't run under Vitest, so read the files directly
 // and validate them with the same schema the site uses. Image paths must
 // resolve to real files.
-const DIR = 'src/content/trips';
+const DIR = 'supabase/seed-data/trips';
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---/;
 
 const trips = readdirSync(DIR)
@@ -57,15 +58,52 @@ describe('trips collection', () => {
 });
 
 describe('trip helpers', () => {
-  it('formats dates per language and handles TBD', () => {
-    expect(formatTripDate('2025-11', 'en')).toBe('November 2025');
-    expect(formatTripDate('2025-11', 'ar')).toContain('2025');
-    expect(formatTripDate('TBD', 'en')).toBe('Date to be confirmed');
+  it('formats dates per language and handles a missing date', () => {
+    expect(formatTripDate('2025-11-14', 'en')).toBe('November 2025');
+    expect(formatTripDate('2025-11-14', 'ar')).toContain('2025');
+    expect(formatTripDate(null, 'en')).toBe('Date to be confirmed');
   });
 
-  it('sorts newest first with TBD last', () => {
-    const mk = (slug: string, date: string) => ({ data: { slug, date, title: { en: slug } } }) as never;
-    const sorted = sortTrips([mk('a', 'TBD'), mk('b', '2024-05'), mk('c', '2025-01')]);
-    expect(sorted.map((t: { data: { slug: string } }) => t.data.slug)).toEqual(['c', 'b', 'a']);
+  it('sorts newest first with undated trips last', () => {
+    const mk = (slug: string, startDate: string | null) =>
+      ({ slug, startDate, title: { en: slug, ar: slug } }) as unknown as Trip;
+    const sorted = sortTrips([mk('a', null), mk('b', '2024-05-01'), mk('c', '2025-01-01')]);
+    expect(sorted.map((t) => t.slug)).toEqual(['c', 'b', 'a']);
+  });
+
+  it('maps a database row to the page model (cover, ordered gallery, URLs)', () => {
+    const base = 'https://abcd.supabase.co';
+    const img = (id: string, kind: string, sort: number) => ({
+      id, kind, sort_order: sort, trip_id: 't1', width: 1600, height: 1000,
+      path_sm: `trips/t1/${id}-sm.webp`, path_md: `trips/t1/${id}-md.webp`, path_lg: `trips/t1/${id}-lg.webp`,
+      placeholder: 'data:image/webp;base64,AAA', size_bytes: 1, alt_ar: 'ص', alt_en: `alt ${id}`, created_at: '',
+    });
+    const trip = toTrip(
+      {
+        id: 't1', slug: 'jijel', title_ar: 'جيجل', title_en: 'Jijel', summary_ar: '', summary_en: '',
+        description_ar: '', description_en: '', region: 'kabylie-north-coast', terrain: ['coast'],
+        difficulty: null, start_date: null, end_date: null, meeting_point_ar: null, meeting_point_en: null,
+        meeting_time: null, price_da: null, capacity: null, hold_hours: 48, registration_deadline: null,
+        payment_instructions_ar: '', payment_instructions_en: '', what_to_bring_ar: '', what_to_bring_en: '',
+        status: 'completed', instagram_post_url: null, featured: true, cover_image_id: 'p', created_at: '', updated_at: '',
+        images: [img('g2', 'gallery', 2), img('p', 'poster', 0), img('g1', 'gallery', 1)],
+      } as never,
+      base,
+    );
+    expect(trip.cover?.id).toBe('p');
+    expect(trip.gallery.map((g) => g.id)).toEqual(['g1', 'g2']);
+    expect(trip.cover?.src).toBe(`${base}/storage/v1/object/public/trip-images/trips/t1/p-md.webp`);
+    expect(trip.cover?.srcset).toBe(
+      `${base}/storage/v1/object/public/trip-images/trips/t1/p-sm.webp 480w, ` +
+        `${base}/storage/v1/object/public/trip-images/trips/t1/p-md.webp 960w, ` +
+        `${base}/storage/v1/object/public/trip-images/trips/t1/p-lg.webp 1600w`,
+    );
+  });
+
+  it('srcset scales width descriptors for portrait posters', () => {
+    const s = srcset({ width: 1280, height: 1600, path_sm: 'a', path_md: 'b', path_lg: 'c' }, 'https://x.co');
+    expect(s).toContain('/a 384w');
+    expect(s).toContain('/b 768w');
+    expect(s).toContain('/c 1280w');
   });
 });

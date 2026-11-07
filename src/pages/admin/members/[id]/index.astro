@@ -1,0 +1,7 @@
+---
+// Admin (server-rendered, never cached; access checked in src/middleware.ts).
+import MemberPage from '../../../../views/admin/MemberPage.astro';
+const id = /^[0-9a-f-]{36}$/.test(Astro.params.id ?? '') ? Astro.params.id! : '00000000-0000-0000-0000-000000000000';
+---
+
+<MemberPage locale="ar" id={id} />

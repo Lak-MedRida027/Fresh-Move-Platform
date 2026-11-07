@@ -41,7 +41,8 @@ test.describe('trips list filters', () => {
   test('empty state appears when nothing matches', async ({ page }) => {
     await page.goto('/en/trips/?terrain=desert&region=babors');
     await expect(visibleCards(page)).toHaveCount(0);
-    await expect(page.locator('[data-trip-empty]')).toBeVisible();
+    await expect(page.locator('#past [data-trip-empty]')).toBeVisible();
+    await expect(page.locator('#upcoming [data-trip-empty]')).toBeVisible();
   });
 });
 
@@ -96,7 +97,7 @@ test.describe('trip detail gallery', () => {
   });
 });
 
-test.describe('Instagram is the only booking path', () => {
+test.describe('Instagram links and the booking path', () => {
   const IG = /^https:\/\/(www\.instagram\.com\/fresh_move1\/|ig\.me\/m\/fresh_move1)$/;
   const pages = ['/', '/en/', '/trips/', '/en/trips/', '/trips/chelia-summit/', '/en/trips/chelia-summit/', '/join/', '/en/join/'];
 
@@ -141,13 +142,14 @@ test.describe('pages', () => {
     expect(res?.status()).toBe(404);
     await expect(page.locator('h1')).toHaveCount(1);
     await expect(page.locator('.notfound__other')).toBeVisible();
-    // Vercel serves the root 404 for every path, so it carries both languages.
+    // On Cloudflare, unknown English URLs get the English 404 (Darja block below it).
     const en = await page.goto('/en/nope/');
     expect(en?.status()).toBe(404);
-    await expect(page.locator('.notfound__other[lang="en"]')).toContainText('Lost on the trail?');
-    // The English version is still reachable from the language switch.
-    await page.goto('/en/404/');
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.locator('h1')).toHaveText('Lost on the trail?');
+    // Unknown trip slugs are 404s too (not 500s).
+    expect((await page.goto('/en/trips/does-not-exist/'))?.status()).toBe(404);
+    expect((await page.goto('/trips/does-not-exist/'))?.status()).toBe(404);
   });
 
   test('language switch stays on the same trip', async ({ page }) => {

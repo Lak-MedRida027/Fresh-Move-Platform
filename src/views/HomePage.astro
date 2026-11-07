@@ -1,5 +1,4 @@
 ---
-import { getImage } from 'astro:assets';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Logo from '../components/Logo.astro';
 import Icon from '../components/Icon.astro';
@@ -7,29 +6,35 @@ import SectionHeading from '../components/SectionHeading.astro';
 import TripCard from '../components/TripCard.astro';
 import JoinSection from '../components/JoinSection.astro';
 import InstagramButtons from '../components/InstagramButtons.astro';
-import heroImage from '../assets/hero/hero.jpg';
 import { REGIONS } from '../data/regions';
 import { INSTAGRAM, MIN_AGE, SITE, STATS } from '../config/site';
 import { localizePath, useTranslations, type Locale, type TKey } from '../i18n';
-import { getFeaturedTrips } from '../lib/trips';
+import { getFeaturedTrips, getUpcomingTrips } from '../lib/trips';
 
 interface Props {
   locale: Locale;
 }
 const { locale } = Astro.props;
 const t = useTranslations(locale);
-const featured = await getFeaturedTrips(6);
+// Trip data changes from the admin: cache the page briefly at the edge, tagged
+// so admin edits can purge it.
+if (Astro.cache?.enabled) Astro.cache.set({ maxAge: 60, swr: 300, tags: ['trips'] });
+// If the database is unreachable, the page still renders (without trip cards).
+const onError = (error: unknown) => {
+  console.error('home: could not load trips', error instanceof Error ? error.message : error);
+  return [];
+};
+const [upcoming, featured] = await Promise.all([getUpcomingTrips().catch(onError), getFeaturedTrips(6).catch(onError)]);
 const tripsHref = localizePath('/trips/', locale);
 
-// Hero: one responsive WebP set, preloaded with the exact same srcset.
+// Hero: pre-sized WebP files (scripts/make-hero.mjs), preloaded with the same srcset.
 const HERO_SIZES = '100vw';
-const hero = await getImage({
-  src: heroImage,
-  widths: [640, 960, 1280, 1920],
-  sizes: HERO_SIZES,
-  format: 'webp',
-  quality: 72,
-});
+const HERO = {
+  src: '/hero/hero-960.webp',
+  srcset: [640, 960, 1280, 1920].map((w) => `/hero/hero-${w}.webp ${w}w`).join(', '),
+  width: 1920,
+  height: 1080,
+};
 
 const pillars: { key: 'travel' | 'nature' | 'history' | 'adventure'; icon: 'route' | 'mountain' | 'columns' | 'compass' }[] = [
   { key: 'travel', icon: 'route' },
@@ -85,8 +90,8 @@ const faqs = [1, 2, 3, 4, 5, 6] as const;
     rel="preload"
     as="image"
     type="image/webp"
-    href={hero.src}
-    imagesrcset={hero.srcSet.attribute}
+    href={HERO.src}
+    imagesrcset={HERO.srcset}
     imagesizes={HERO_SIZES}
     fetchpriority="high"
   />
@@ -95,11 +100,11 @@ const faqs = [1, 2, 3, 4, 5, 6] as const;
   <section class="hero" aria-labelledby="hero-title">
     <img
       class="hero__img"
-      src={hero.src}
-      srcset={hero.srcSet.attribute}
+      src={HERO.src}
+      srcset={HERO.srcset}
       sizes={HERO_SIZES}
-      width={heroImage.width}
-      height={heroImage.height}
+      width={HERO.width}
+      height={HERO.height}
       alt={t('hero.imageAlt')}
       fetchpriority="high"
       loading="eager"
@@ -227,7 +232,30 @@ const faqs = [1, 2, 3, 4, 5, 6] as const;
     </div>
   </section>
 
-  <!-- 6. Featured past trips -->
+  <!-- 6a. Upcoming trips (bookable on the site) -->
+  <section class="section upcoming" id="upcoming" aria-labelledby="upcoming-title">
+    <div class="container">
+      <SectionHeading eyebrow={t('upcoming.eyebrow')} title={t('upcoming.title')} id="upcoming-title" />
+      {
+        upcoming.length ? (
+          <ul class="trip-grid" role="list" data-upcoming-list>
+            {upcoming.map((trip) => (
+              <li class="reveal">
+                <TripCard trip={trip} locale={locale} variant="upcoming" />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div class="upcoming__empty">
+            <p>{t('upcoming.empty')}</p>
+            <InstagramButtons locale={locale} followLabel={t('how.ctaFollow')} dmLabel={t('how.ctaDm')} />
+          </div>
+        )
+      }
+    </div>
+  </section>
+
+  <!-- 6b. Featured past trips -->
   <section class="section featured" aria-labelledby="featured-title">
     <div class="container">
       <SectionHeading eyebrow={t('featured.eyebrow')} title={t('featured.title')} id="featured-title" />
@@ -608,6 +636,17 @@ const faqs = [1, 2, 3, 4, 5, 6] as const;
   .featured__more {
     margin-block-start: 2rem;
     text-align: center;
+  }
+
+  /* ---------- Upcoming ---------- */
+  .upcoming__empty {
+    display: grid;
+    gap: 1rem;
+    justify-items: start;
+    padding: 1.5rem 1.25rem;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    font-size: 1.05rem;
   }
 
   /* ---------- How it works ---------- */
